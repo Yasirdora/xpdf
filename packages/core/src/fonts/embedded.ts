@@ -108,9 +108,13 @@ export class EmbeddedFont {
     const scale = (v: number) => Math.round((v * 1000) / upem);
 
     // /W array: grouped runs of consecutive gids
+    // One entry per glyph: when several codepoints share a glyph (space and
+    // no-break space, say) the lowest codepoint wins, so /W has no repeats
+    // and ToUnicode never maps one code to two values.
     const entries = [...glyphs.entries()]
       .map(([cp, gid]) => ({ cp, gid, w: scale(this.font.advances[gid] ?? 0) }))
-      .sort((a, b) => a.gid - b.gid);
+      .sort((a, b) => a.gid - b.gid || a.cp - b.cp)
+      .filter((e, k, all) => k === 0 || all[k - 1]!.gid !== e.gid);
     const wParts: string[] = [];
     let i = 0;
     while (i < entries.length) {

@@ -60,9 +60,17 @@ export class ParagraphBlock implements Block {
     const slices: Slice[] = [];
     if (s.spaceBefore > 0) slices.push({ kind: 'space', height: s.spaceBefore });
     const lines = this.linesAt(width, ctx);
+    const level = /^H([1-6])$/.exec(this.role)?.[1];
+    const title = this.runs.map((r) => r.text).join('').replace(/\s+/g, ' ').trim();
     for (let i = 0; i < lines.length; i++) {
       lines[i]!.x = s.indent + (i === 0 ? s.firstLineIndent : 0);
-      slices.push({ kind: 'text', height: lines[i]!.height, lines: [lines[i]!], role: this.role });
+      slices.push({
+        kind: 'text',
+        height: lines[i]!.height,
+        lines: [lines[i]!],
+        role: this.role,
+        ...(i === 0 && level && title ? { outline: { title, level: Number(level) } } : {}),
+      });
     }
     if (s.spaceAfter > 0) slices.push({ kind: 'space', height: s.spaceAfter });
     return slices;

@@ -58,8 +58,18 @@ export function paginate(blocks: Block[], ctx: PaginationContext, geom: PageGeom
 
   while (state.bi < blocks.length || state.pendingHeaders) {
     const result = layoutPage(blocks, state, ctx, geom, cache, pages.length + 1);
+    const next = result.endState;
+    if (
+      result.layout.placements.length === 0 &&
+      next.bi === state.bi &&
+      next.si === state.si &&
+      next.pendingHeaders === state.pendingHeaders
+    ) {
+      // an empty page that leaves the stream where it was would repeat forever
+      throw new Error(`Pagination made no progress on page ${pages.length + 1} (block ${state.bi}).`);
+    }
     pages.push(result.layout);
-    state = result.endState;
+    state = next;
     // defensive: headers pending with no rows left behind them
     if (state.bi >= blocks.length && state.pendingHeaders) {
       state = { ...state, pendingHeaders: null };
@@ -168,7 +178,7 @@ function pack(
         bi++; // already at a page top: the break is a no-op
         continue;
       }
-      return finishPage(items, { bi: bi + 1, si: 0, pendingHeaders: null });
+      return finishPage(items, { bi: bi + 1, si: 0, pendingHeaders: null }, blocks.length);
     }
 
     const slices = layoutOf(block);
@@ -178,7 +188,7 @@ function pack(
     if (si === 0 && block.props.keepTogether && slices.length) {
       const totalH = slices.reduce((a, s) => a + s.height, 0);
       if (totalH > availH - y + EPS && y > EPS) {
-        return finishPage(items, { bi, si: 0, pendingHeaders: null });
+        return finishPage(items, { bi, si: 0, pendingHeaders: null }, blocks.length);
       }
     }
 
@@ -209,7 +219,23 @@ function pack(
         continue;
       }
 
-      // ---- overflow: widow/orphan rules, then break ----
+      // ---- overflow ----
+      if (s.kind === 'space') {
+        // a gap that does not fit simply ends the page; it would vanish at
+        // the next page top anyway, and it must not trigger widow rules
+        return finishPage(items, { bi, si: si + 1, pendingHeaders: null }, blocks.length);
+      }
+
+      if (items.length === 0) {
+        // nothing on the page yet and the slice is taller than the page:
+        // place it overflowing rather than loop on an empty page
+        items.push({ placement: { slice: s, x: 0, y }, block, blockIndex: bi, sliceIndex: si });
+        y += s.height;
+        si++;
+        continue;
+      }
+
+      // ---- widow/orphan rules, then break ----
       if (block instanceof ParagraphBlock) {
         const placedHere = items.filter(
           (it) => it.block === block && it.placement.slice.kind === 'text',
@@ -225,7 +251,7 @@ function pack(
           const need = widows - remainingText;
           rewind = placedHere - need >= orphans ? need : placedHere;
         }
-        if (rewind > 0) {
+        if (rewind > 0 && rewind < items.length) {
           let removed = 0;
           while (removed < rewind && items.length) {
             const last = items[items.length - 1]!;
@@ -234,13 +260,7 @@ function pack(
             items.pop();
             removed++;
           }
-          return finishPage(items, { bi, si: si - removed, pendingHeaders: null });
-        }
-        if (placedHere === 0 && items.length === 0) {
-          // a single line taller than an empty page cannot happen; guard anyway
-          items.push({ placement: { slice: s, x: 0, y }, block, blockIndex: bi, sliceIndex: si });
-          si++;
-          continue;
+          return finishPage(items, { bi, si: si - removed, pendingHeaders: null }, blocks.length);
         }
       }
 
@@ -254,24 +274,28 @@ function pack(
         return { items: [], endState: { bi, si: start.si, pendingHeaders: null } };
       }
 
-      return finishPage(items, { bi, si, pendingHeaders: headerSlicesOf(block, slices, si) });
+      return finishPage(items, { bi, si, pendingHeaders: headerSlicesOf(block, slices, si) }, blocks.length);
     }
 
     si = 0;
     bi++;
   }
-  return finishPage(items, { bi, si: 0, pendingHeaders: null });
+  return finishPage(items, { bi, si: 0, pendingHeaders: null }, blocks.length);
 }
 
 /**
  * Rewind trailing keep-with-next blocks stranded at the page end (a heading
  * whose paragraph starts on the next page must move with it; chains of
- * keep-with-next blocks rewind together).
+ * keep-with-next blocks rewind together). Nothing rewinds when the document
+ * has ended (there is no next block to keep with) or when the rewind would
+ * leave the page empty (the next page would start in the same place).
  */
 function finishPage(
   items: PlacedItem[],
   end: StreamState,
+  blockCount: number,
 ): { items: PlacedItem[]; endState: StreamState } {
+  if (end.bi >= blockCount) return { items, endState: end };
   for (;;) {
     const last = items[items.length - 1];
     if (!last || !last.block.props.keepWithNext) break;
@@ -279,7 +303,7 @@ function finishPage(
     let firstIdx = items.length - 1;
     while (firstIdx > 0 && items[firstIdx - 1]!.block === last.block) firstIdx--;
     const startsHere = items[firstIdx]!.sliceIndex === 0;
-    if (!startsHere) break;
+    if (!startsHere || firstIdx === 0) break;
     items.length = firstIdx;
     end = { bi: last.blockIndex, si: 0, pendingHeaders: null };
   }

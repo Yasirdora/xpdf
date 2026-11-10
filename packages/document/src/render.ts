@@ -5,7 +5,13 @@
  * produces the same bytes (core build is deterministic: own deflate, no
  * timestamps, no random ids).
  */
-import { Document as CoreDocument, Page as CorePage, EmbeddedFont, type DocumentOptions, type FontRef } from '@omnipdf/core';
+import {
+  Document as CoreDocument,
+  Page as CorePage,
+  type DocumentOptions,
+  type FontRef,
+  type OutlineItem,
+} from '@omnipdf/core';
 import type { FontRegistry } from './measurer.js';
 import type { PageGeometry } from './paginator.js';
 import type { LayoutLine, PageLayout, Placement, Slice } from './types.js';
@@ -30,6 +36,8 @@ export interface RenderOptions {
   }>;
   header?: FurnitureFn;
   footer?: FurnitureFn;
+  /** Build bookmarks from the headings' outline marks, nested by level. */
+  outline?: boolean;
 }
 
 export function renderPages(
@@ -40,22 +48,43 @@ export function renderPages(
 ): Uint8Array {
   const doc = new CoreDocument(opts.metadata);
 
-  // share the measurer's parsed EmbeddedFont instances with the core doc
-  for (const [, f] of fonts.entries()) {
-    if (f.embedded && f.ref instanceof EmbeddedFont) doc.embedFont(f.ref);
-  }
+  // Embedded faces join the core document on first use (page.text registers
+  // the measurer's own EmbeddedFont instance), so a face that was registered
+  // but never drawn adds nothing to the file.
   for (const a of opts.attachments ?? []) doc.attach(a.name, a.data, a.opts);
 
   const total = pages.length;
+  const outline = new OutlineBuilder();
   for (const layout of pages) {
     const page = doc.addPage(geom.pageWidth, geom.pageHeight);
     const ctx: FurnitureContext = { page: layout.index, pages: total, font: (name) => fonts.resolve(name).ref };
     opts.header?.(page, ctx);
-    for (const p of layout.placements) drawPlacement(page, p, fonts, geom);
+    for (const p of layout.placements) {
+      drawPlacement(page, p, fonts, geom);
+      if (opts.outline && p.slice.kind === 'text' && p.slice.outline) {
+        outline.add(p.slice.outline, page, geom.marginTop + p.y);
+      }
+    }
     for (const p of layout.notes) drawPlacement(page, p, fonts, geom);
     opts.footer?.(page, ctx);
   }
+  if (outline.items.length) doc.setOutlines(outline.items);
   return doc.build();
+}
+
+/** Nests heading bookmarks: each one goes under the nearest shallower heading. */
+class OutlineBuilder {
+  readonly items: OutlineItem[] = [];
+  private readonly stack: Array<{ level: number; item: OutlineItem }> = [];
+
+  add(mark: { title: string; level: number }, page: CorePage, y: number): void {
+    const item: OutlineItem = { title: mark.title, page, y };
+    while (this.stack.length && this.stack[this.stack.length - 1]!.level >= mark.level) this.stack.pop();
+    const parent = this.stack[this.stack.length - 1]?.item;
+    if (parent) (parent.children ??= []).push(item);
+    else this.items.push(item);
+    this.stack.push({ level: mark.level, item });
+  }
 }
 
 function drawPlacement(
@@ -134,5 +163,7 @@ function drawLine(page: CorePage, line: LayoutLine, x: number, y: number, fonts:
       size: run.size,
       color: run.color,
     });
+    // y is the line box top, so the link covers the whole line height
+    if (run.href !== undefined) page.link(run.href, x + line.x + run.x, y, run.width, line.height);
   }
 }

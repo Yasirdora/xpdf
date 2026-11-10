@@ -43,6 +43,11 @@ export interface DocumentOptions extends DocumentMetadata {
    * schemas — e.g. the Factur-X fx: block). Must be well-formed.
    */
   xmpExtensions?: string[];
+  /**
+   * Natural language of the text (BCP 47, e.g. 'en'), written as the
+   * catalog /Lang for screen readers and text-to-speech.
+   */
+  lang?: string;
 }
 
 export interface TextOptions {
@@ -71,6 +76,8 @@ interface ImageRef {
   index: number; // 1-based /ImN resource index
   width: number;
   height: number;
+  /** PDF colour space from the SOF component count: 1 → DeviceGray, 3 → DeviceRGB. */
+  colorSpace: 'DeviceGray' | 'DeviceRGB';
   bytes: Uint8Array;
 }
 
@@ -95,10 +102,12 @@ export class Document {
   private compress: boolean;
   private pdfa?: '3B' | '3U';
   private xmpExtensions: string[];
+  private lang?: string;
 
   constructor(opts?: DocumentOptions) {
-    const { compress, pdfa, xmpExtensions, ...meta } = opts ?? {};
+    const { compress, pdfa, xmpExtensions, lang, ...meta } = opts ?? {};
     this.meta = meta;
+    this.lang = lang;
     this.compress = compress ?? true;
     this.pdfa = pdfa;
     this.xmpExtensions = xmpExtensions ?? [];
@@ -149,8 +158,12 @@ export class Document {
 
   /** Register a JPEG image; returns an internal reference. */
   registerJpeg(bytes: Uint8Array): ImageRef {
-    const { width, height } = parseJpegSize(bytes);
-    const ref: ImageRef = { objNum: -1, index: this.images.length + 1, width, height, bytes: new Uint8Array(bytes) };
+    const { width, height, components } = parseJpegSize(bytes);
+    if (components !== 1 && components !== 3) {
+      throw new Error(`unsupported JPEG: ${components} colour components (only greyscale and RGB are supported)`);
+    }
+    const colorSpace = components === 1 ? 'DeviceGray' : 'DeviceRGB';
+    const ref: ImageRef = { objNum: -1, index: this.images.length + 1, width, height, colorSpace, bytes: new Uint8Array(bytes) };
     this.images.push(ref);
     return ref;
   }
@@ -239,9 +252,12 @@ export class Document {
     const namesPart = namesObj ? ` /Names ${namesObj} 0 R /AF [${filespecObjs.map((n) => `${n} 0 R`).join(' ')}]` : '';
     const outlinePart = outlineRoot ? ` /Outlines ${outlineRoot} 0 R /PageMode /UseOutlines` : '';
     const outputIntentsPart = this.pdfa ? ` /OutputIntents [${outputIntentObj} 0 R]` : '';
+    const langPart = this.lang ? ` /Lang ${encodePdfString(this.lang)}` : '';
+    // show the document title, not the file name, in the viewer's title bar
+    const viewerPart = this.meta.title ? ' /ViewerPreferences << /DisplayDocTitle true >>' : '';
     w.setObject(
       catalogObj,
-      `<< /Type /Catalog /Pages ${pagesObj} 0 R /Metadata ${xmpObj} 0 R${outlinePart}${namesPart}${outputIntentsPart} >>`,
+      `<< /Type /Catalog /Pages ${pagesObj} 0 R /Metadata ${xmpObj} 0 R${outlinePart}${namesPart}${outputIntentsPart}${langPart}${viewerPart} >>`,
     );
     w.setObject(
       pagesObj,
@@ -276,7 +292,7 @@ export class Document {
     this.images.forEach((img) => {
       w.setStreamObject(
         img.objNum,
-        ` /Type /XObject /Subtype /Image /Width ${img.width} /Height ${img.height} /ColorSpace /DeviceRGB /BitsPerComponent 8`,
+        ` /Type /XObject /Subtype /Image /Width ${img.width} /Height ${img.height} /ColorSpace /${img.colorSpace} /BitsPerComponent 8`,
         img.bytes,
         { compress: false, rawFilter: 'DCTDecode' },
       );
@@ -299,7 +315,7 @@ export class Document {
         const y2 = page.height - link.y;
         w.setObject(
           annots[j]!,
-          `<< /Type /Annot /Subtype /Link /Rect [${fx(x1)} ${fx(y1)} ${fx(x2)} ${fx(y2)}] /F 4 /Border [0 0 0] /A << /S /URI /URI ${encodePdfString(link.url)} >> >>`,
+          `<< /Type /Annot /Subtype /Link /Rect [${fx(x1)} ${fx(y1)} ${fx(x2)} ${fx(y2)}] /F 4 /Border [0 0 0] /BS << /W 0 >> /A << /S /URI /URI ${encodePdfString(asciiUri(link.url))} >> >>`,
         );
       });
     });
@@ -394,9 +410,12 @@ export class Page {
     }
 
     const body = isEmbedded ? fontRef.encodeHex(str) : encodePdfString(str);
+    // Tc is text state, which outlives ET: reset it so it cannot leak into
+    // the next text() call
     const cs = opts?.charSpacing ? `${fx(opts.charSpacing)} Tc ` : '';
+    const csReset = opts?.charSpacing ? ' 0 Tc' : '';
     this.content.push(
-      `BT /${key} ${fx(size)} Tf ${pdfColor(color)} rg ${cs}${fx(tx)} ${fx(this.height - y)} Td ${body} Tj ET`,
+      `BT /${key} ${fx(size)} Tf ${pdfColor(color)} rg ${cs}${fx(tx)} ${fx(this.height - y)} Td ${body} Tj${csReset} ET`,
     );
     return this;
   }
@@ -442,6 +461,15 @@ export class Page {
 // helpers
 // ---------------------------------------------------------------------------
 
+/**
+ * A /URI action holds a 7-bit ASCII URI (PDF 32000-1 §12.6.4.7):
+ * percent-encode anything else as UTF-8, so non-Latin addresses work and
+ * never throw in the WinAnsi string encoder.
+ */
+export function asciiUri(url: string): string {
+  return url.replace(/[^\x21-\x7e]/gu, (ch) => encodeURIComponent(ch));
+}
+
 export function hexToRgb(hex: string): [number, number, number] {
   const m = /^#?([0-9a-fA-F]{6})$/.exec(hex.trim());
   if (!m) throw new Error(`invalid color ${JSON.stringify(hex)} — expected #rrggbb`);
@@ -455,8 +483,8 @@ export function pdfColor(hex: string): string {
     .join(' ');
 }
 
-/** Parse JPEG SOF marker for intrinsic dimensions. */
-export function parseJpegSize(bytes: Uint8Array): { width: number; height: number } {
+/** Parse JPEG SOF marker for intrinsic dimensions and the colour component count. */
+export function parseJpegSize(bytes: Uint8Array): { width: number; height: number; components: number } {
   if (bytes[0] !== 0xff || bytes[1] !== 0xd8) throw new Error('not a JPEG (missing SOI)');
   let i = 2;
   while (i + 9 < bytes.length) {
@@ -469,7 +497,8 @@ export function parseJpegSize(bytes: Uint8Array): { width: number; height: numbe
     if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) {
       const height = (bytes[i + 5]! << 8) | bytes[i + 6]!;
       const width = (bytes[i + 7]! << 8) | bytes[i + 8]!;
-      return { width, height };
+      const components = bytes[i + 9]!;
+      return { width, height, components };
     }
     const len = (bytes[i + 2]! << 8) | bytes[i + 3]!;
     i += 2 + len;

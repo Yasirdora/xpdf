@@ -43,6 +43,10 @@ export interface LayoutDocumentOptions {
   author?: string;
   subject?: string;
   keywords?: string[];
+  /** Natural language of the text (BCP 47, e.g. 'en'), written as the catalog /Lang. */
+  lang?: string;
+  /** Build the bookmarks sidebar from the headings (nested by level). Default false. */
+  outline?: boolean;
 }
 
 export interface TableDef extends BlockProps {
@@ -244,12 +248,14 @@ export class LayoutDocument {
         ...(this.opts.author !== undefined ? { author: this.opts.author } : {}),
         ...(this.opts.subject !== undefined ? { subject: this.opts.subject } : {}),
         ...(this.opts.keywords !== undefined ? { keywords: this.opts.keywords } : {}),
+        ...(this.opts.lang !== undefined ? { lang: this.opts.lang } : {}),
         ...(this.opts.pdfa !== undefined ? { pdfa: this.opts.pdfa } : {}),
         ...(this.xmpExtensions.length ? { xmpExtensions: [...this.xmpExtensions] } : {}),
       },
       attachments: this.attachments.map((a) => ({ name: a.name, data: a.data, ...(a.opts ? { opts: a.opts } : {}) })),
       ...(this.opts.header ? { header: this.opts.header } : {}),
       ...(this.opts.footer ? { footer: this.opts.footer } : {}),
+      ...(this.opts.outline ? { outline: true } : {}),
     });
   }
 
@@ -268,6 +274,7 @@ export class LayoutDocument {
         size: run.size ?? style.size,
         color: run.color ?? style.color,
         ...(noteId !== undefined ? { noteId } : {}),
+        ...(run.href !== undefined ? { href: run.href } : {}),
       };
     });
   }
