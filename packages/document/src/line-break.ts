@@ -69,21 +69,28 @@ function isUrlLike(word: string): boolean {
 
 /**
  * Pieces of a web address, each ending after a break character, so the
- * greedy breaker can wrap it like words without glue. Never splits inside
- * the "://" after the scheme.
+ * greedy breaker can wrap it like words without glue. Every "://" is kept
+ * intact (a break after its last slash is allowed); breaks before a later
+ * scheme are allowed too.
  */
 function urlPieces(word: string): string[] {
-  const schemeEnd = word.indexOf('://');
-  const protectedEnd = schemeEnd === -1 ? 0 : schemeEnd + 3;
+  const schemes: Array<[number, number]> = [];
+  let search = 0;
+  while (search < word.length) {
+    const at = word.indexOf('://', search);
+    if (at === -1) break;
+    schemes.push([at, at + 3]);
+    search = at + 3;
+  }
+  // A character whose end index sits strictly inside a "://" must not end a piece.
+  const insideScheme = (end: number) => schemes.some(([start, stop]) => end > start && end < stop);
   const pieces: string[] = [];
   let piece = '';
   let index = 0;
   for (const ch of word) {
     piece += ch;
     index += ch.length;
-    // The last "/" of "://" ends exactly at protectedEnd: a break after it
-    // is allowed, a break inside the "://" is not.
-    if (index >= protectedEnd && URL_BREAK_AFTER.has(ch)) {
+    if (URL_BREAK_AFTER.has(ch) && !insideScheme(index)) {
       pieces.push(piece);
       piece = '';
     }
@@ -118,29 +125,41 @@ export function tokenize(runs: StyledRun[], measurer: Measurer): Token[] {
       });
       word = '';
     };
-    for (const ch of run.text) {
-      const cp = ch.codePointAt(0)!;
-      if (ch === '\n') {
+    const text = run.text;
+    for (let i = 0; i < text.length; ) {
+      const cp = text.codePointAt(i)!;
+      const ch = String.fromCodePoint(cp);
+      if (cp === 0x0d || cp === 0x0a) {
         flushWord();
+        // CRLF is one break, not two.
+        i += cp === 0x0d && text.charCodeAt(i + 1) === 0x0a ? 2 : ch.length;
         tokens.push({
           text: '', font: run.font, size: run.size, color: run.color, dy: 0, width: 0,
           glue: false, forcedBreak: true,
         });
-      } else if (isSpace(cp)) {
+        continue;
+      }
+      if (isSpace(cp)) {
         flushWord();
+        // Draw glue the font cannot encode as a normal space, but keep the
+        // width already measured for the original character.
+        const shown = measurer.supports(run.font, ch) ? ch : ' ';
+        const width = measurer.width(run.font, ch, run.size);
         const prev = tokens[tokens.length - 1];
         if (prev?.glue && prev.font === run.font && prev.size === run.size && prev.href === run.href) {
-          prev.text += ch;
-          prev.width += measurer.width(run.font, ch, run.size);
+          prev.text += shown;
+          prev.width += width;
         } else {
           tokens.push({
-            text: ch, font: run.font, size: run.size, color: run.color, dy: 0,
-            width: measurer.width(run.font, ch, run.size), glue: true, ...link,
+            text: shown, font: run.font, size: run.size, color: run.color, dy: 0,
+            width, glue: true, ...link,
           });
         }
-      } else {
-        word += ch;
+        i += ch.length;
+        continue;
       }
+      word += ch;
+      i += ch.length;
     }
     flushWord();
     // footnote marker: superscript number glued AFTER the run's last word
@@ -235,9 +254,13 @@ export function breakLines(runs: StyledRun[], measurer: Measurer, opts: BreakOpt
           const movedWidth = moved.reduce((sum, t) => sum + t.width, 0);
           currentWidth -= movedWidth;
           emit(false);
-          current = moved;
-          currentWidth = movedWidth;
+          // Put the carried tokens back through the breaker. The next line
+          // can be narrower (a negative first-line indent), and an overlong
+          // carry must hard-split the same way any other word does.
           next--;
+          pending.splice(next, 0, ...moved);
+          current = [];
+          currentWidth = 0;
           continue;
         }
         // word doesn't fit: emit current, place word on next line (split if needed)
@@ -333,12 +356,20 @@ function positionLine(
   // Under justification the stretch lives in positioning only: each space is
   // still painted at its natural width, so copy, search and screen readers
   // keep the word breaks, and the next word starts a new run after the gap.
+  // Glue drawn as U+0020 but measured wider (a missing em space) must stay
+  // its own run, or the following word would be painted at the space glyph's
+  // advance instead of the measured width.
+  const natural = (font: string, text: string, size: number) => measurer.width(font, text, size);
+  const holdsGap = (font: string, text: string, size: number, layoutWidth: number) =>
+    Math.abs(natural(font, text, size) - layoutWidth) > 1e-6;
   for (const t of tokens) {
     const w = t.width + (t.glue ? extraPerGlue : 0);
     const drawn = t.glue ? t.width : w;
     const prev = runs[runs.length - 1];
+    const thisGap = t.glue && holdsGap(t.font, t.text, t.size, t.width);
+    const prevGap = prev ? holdsGap(prev.font, prev.text, prev.size, prev.width) : false;
     const mergeable =
-      prev && prev.font === t.font && prev.size === t.size && prev.color === t.color &&
+      prev && !thisGap && !prevGap && prev.font === t.font && prev.size === t.size && prev.color === t.color &&
       prev.dy === t.dy && prev.href === t.href && prev.x + prev.width === x;
     if (mergeable) {
       // one Tj per styled segment keeps extraction clean and streams small

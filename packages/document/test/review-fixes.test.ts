@@ -1,14 +1,28 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { inflateSync } from 'node:zlib';
 import { LayoutDocument } from '../src/document.js';
 import { FontRegistry, Measurer } from '../src/measurer.js';
-import { ParagraphBlock, ImageBlock } from '../src/blocks.js';
+import { ParagraphBlock, ImageBlock, PageBreakBlock } from '../src/blocks.js';
+import { TableBlock, type ResolvedTableStyle } from '../src/table.js';
 import { breakLines, tokenize, type StyledRun } from '../src/line-break.js';
 import { paginate, type PageGeometry, type PaginationContext } from '../src/paginator.js';
-import type { BlockProps, ResolvedParagraphStyle } from '../src/types.js';
+import type { BlockProps, PageLayout, ResolvedParagraphStyle, Slice } from '../src/types.js';
 
 const latin1 = (u: Uint8Array) => [...u].map((b) => String.fromCharCode(b)).join('');
+
+function inflatedText(bytes: Uint8Array): string {
+  const str = latin1(bytes);
+  const out: string[] = [];
+  const re = /<<\s*\/Filter \/FlateDecode \/Length (\d+)[^\n]*?>>\nstream\n/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(str))) {
+    const raw = bytes.subarray(m.index + m[0].length, m.index + m[0].length + Number(m[1]));
+    out.push(latin1(new Uint8Array(inflateSync(raw))));
+  }
+  return out.join('\n');
+}
 
 const registry = new FontRegistry();
 const measurer = new Measurer(registry);
@@ -189,6 +203,9 @@ describe('paginator guards', () => {
     const pages = paginate([para(11), heading(), para(3)], ctx, geom);
     expect(pages.length).toBe(2);
     expect(textCount(pages[0]!)).toBe(11);
+    expect(pageText(pages[0]!)).not.toContain('Heading');
+    expect(pageText(pages[1]!)).toContain('Heading');
+    expect(pageText(pages[1]!)).toContain('line0');
   });
 
   it('does not loop when a heading is followed by a block taller than a page', () => {
@@ -232,7 +249,237 @@ describe('document metadata', () => {
     expect(make(false)).not.toContain('/FontFile2');
     expect(make(true)).toContain('/FontFile2');
   });
+});
 
+describe('web addresses with more than one scheme', () => {
+  const archive = 'https://web.archive.org/web/2024/https://example.org/a/long/path';
+  const redirect = 'www.example.com/redirect?url=https://example.org/a/very/long/path';
+
+  function pieces(word: string): string[] {
+    return tokenize([run(word)], measurer).map((t) => t.text);
+  }
+
+  it('protects every :// and still breaks a www address before a later scheme', () => {
+    const archived = pieces(archive);
+    expect(archived.join('')).toBe(archive);
+    expect(archived[0]).toBe('https://');
+    for (let i = 0; i < archived.length - 1; i++) {
+      expect(archived[i]!.endsWith(':') && archived[i + 1]!.startsWith('//')).toBe(false);
+    }
+    expect(archived.filter((p) => p === 'https://')).toHaveLength(2);
+
+    const redirected = pieces(redirect);
+    expect(redirected.join('')).toBe(redirect);
+    expect(redirected[0]).toBe('www.');
+    expect(redirected.length).toBeGreaterThan(4);
+    expect(redirected).toContain('https://');
+    const schemeAt = redirected.indexOf('https://');
+    expect(schemeAt).toBeGreaterThan(0);
+  });
+});
+
+describe('line endings and glue the font cannot draw', () => {
+  it('treats CR and CRLF as one line break', () => {
+    const lines = breakLines([run('a\r\nb\rc')], measurer, opts(400));
+    expect(lines.map((l) => l.runs.map((r) => r.text).join(''))).toEqual(['a', 'b', 'c']);
+  });
+
+  it('draws a tab and an em space as U+0020', () => {
+    const lines = breakLines([run('a\tb\u2003c')], measurer, opts(400));
+    expect(lines[0]!.runs.map((r) => r.text).join('')).toBe('a b c');
+    const doc = new LayoutDocument({});
+    doc.paragraph('a\tb\u2003c');
+    expect(inflatedText(doc.build())).toContain('(a b c)');
+  });
+
+  it('keeps the measured width of an embedded glue character the font lacks', () => {
+    const fixture = fileURLToPath(new URL('../../core/test/fixtures/Ubuntu-R.ttf', import.meta.url));
+    const fonts = new FontRegistry();
+    fonts.register('ubuntu', new Uint8Array(readFileSync(fixture)));
+    const embedded = new Measurer(fonts);
+    const em = embedded.width('ubuntu', '\u2003', 12);
+    const space = embedded.width('ubuntu', ' ', 12);
+    expect(em).not.toBeCloseTo(space);
+    const lines = breakLines([run('a\u2003b', { font: 'ubuntu' })], embedded, opts(400));
+    expect(lines[0]!.runs.map((r) => r.text)).toEqual(['a', ' ', 'b']);
+    expect(lines[0]!.runs[2]!.x).toBeCloseTo(lines[0]!.runs[0]!.width + em);
+    expect(lines[0]!.width).toBeCloseTo(
+      embedded.width('ubuntu', 'a', 12) + em + embedded.width('ubuntu', 'b', 12),
+    );
+  });
+});
+
+describe('base-14 kerning', () => {
+  it('measures without kern pairs so the width matches Tj', () => {
+    const pair = measurer.width('Helvetica', 'AV', 1000);
+    const sum = measurer.width('Helvetica', 'A', 1000) + measurer.width('Helvetica', 'V', 1000);
+    expect(pair).toBe(sum);
+  });
+});
+
+function pageText(page: PageLayout): string {
+  return page.placements.map((p) => sliceText(p.slice)).join('');
+}
+
+function sliceText(slice: Slice): string {
+  if (slice.kind === 'text') return slice.lines.map((l) => l.runs.map((r) => r.text).join('')).join('');
+  if (slice.kind === 'table-row') {
+    return slice.cells.map((c) => c.lines.map((l) => l.runs.map((r) => r.text).join('')).join('')).join('');
+  }
+  return '';
+}
+
+describe('widows across earlier pages', () => {
+  const geom: PageGeometry = {
+    pageWidth: 200, pageHeight: 200, marginTop: 10, marginRight: 10, marginBottom: 10, marginLeft: 10,
+  };
+  const style: ResolvedParagraphStyle = {
+    font: 'Helvetica', size: 12, lineHeight: 1.25, color: '#000', align: 'left',
+    spaceBefore: 0, spaceAfter: 0, indent: 0, firstLineIndent: 0,
+  };
+  const ctx: PaginationContext = {
+    measurer, contentHeight: 180, defaultStyle: style, notes: new Map(),
+    noteStyle: { font: 'Helvetica', size: 8.5, lineHeight: 1.25, color: '#000' },
+  };
+  const para = (n: number) =>
+    new ParagraphBlock(
+      Array.from({ length: n }, (_, i) => run(i < n - 1 ? `L${i}\n` : `L${n - 1}`)),
+      style, { widows: 2, orphans: 2 }, 'P',
+    );
+
+  it('does not leave a single line of a three-page paragraph', () => {
+    const pages = paginate([para(25)], ctx, geom);
+    const counts = pages.map((p) => p.placements.filter((x) => x.slice.kind === 'text').length);
+    expect(pages.length).toBe(3);
+    expect(counts).toEqual([12, 11, 2]);
+    expect(pageText(pages[2]!)).toContain('L23');
+    expect(pageText(pages[2]!)).toContain('L24');
+    expect(pageText(pages[2]!)).not.toContain('L22');
+  });
+});
+
+describe('tables, breaks, and overlong glue', () => {
+  const geom: PageGeometry = {
+    pageWidth: 200, pageHeight: 200, marginTop: 10, marginRight: 10, marginBottom: 10, marginLeft: 10,
+  };
+  const style: ResolvedParagraphStyle = {
+    font: 'Helvetica', size: 12, lineHeight: 1.25, color: '#000', align: 'left',
+    spaceBefore: 0, spaceAfter: 0, indent: 0, firstLineIndent: 0,
+  };
+  const ctx: PaginationContext = {
+    measurer, contentHeight: 180, defaultStyle: style, notes: new Map(),
+    noteStyle: { font: 'Helvetica', size: 8.5, lineHeight: 1.25, color: '#000' },
+  };
+  const tableStyle: ResolvedTableStyle = {
+    font: 'Helvetica', size: 10, lineHeight: 1.25, color: '#000', padding: 4,
+    borders: 'horizontal', borderColor: '#ccc', headerFont: 'Helvetica-Bold',
+    headerColor: '#000', headerFill: '#eee',
+  };
+
+  it('does not emit a blank page when a repeated header fits and the row does not', () => {
+    const body = Array.from({ length: 13 }, () => 'word').join('\n');
+    const cell = (text: string): StyledRun[] => [{ text, font: 'Helvetica', size: 10, color: '#000' }];
+    const table = new TableBlock({
+      columns: [80],
+      header: 1,
+      rows: [[cell('Head')], [cell(body)]],
+      style: tableStyle,
+    });
+    const pages = paginate([table], ctx, geom);
+    expect(pages.every((p) => p.placements.length > 0)).toBe(true);
+    expect(pages.length).toBe(2);
+    expect(pageText(pages[0]!)).toContain('Head');
+    expect(pageText(pages[1]!)).toContain('word');
+    expect(pages.map(pageText).join('').match(/word/g)).toHaveLength(13);
+  });
+
+  it('collects a footnote attached to a table cell', () => {
+    const cell = (text: string, noteId?: number): StyledRun[] => [{
+      text, font: 'Helvetica', size: 10, color: '#000', ...(noteId !== undefined ? { noteId } : {}),
+    }];
+    const table = new TableBlock({
+      columns: ['*'],
+      rows: [[cell('Head')], [cell('body', 4)]],
+      style: tableStyle,
+    });
+    const noted: PaginationContext = { ...ctx, notes: new Map([[4, 'Cell note text.']]) };
+    const pages = paginate([table], noted, geom);
+    const noteText = pages.flatMap((p) => p.notes).map((n) => sliceText(n.slice)).join('');
+    expect(noteText).toContain('Cell note text.');
+  });
+
+  it('does not rewind a keep-with-next heading across a forced page break', () => {
+    const before = new ParagraphBlock([run('before')], style, {}, 'P');
+    const heading = new ParagraphBlock([run('Stay')], style, { keepWithNext: true }, 'H2');
+    const after = new ParagraphBlock([run('after-break')], style, {}, 'P');
+    const pages = paginate([before, heading, new PageBreakBlock(), after], ctx, geom);
+    expect(pages.length).toBe(2);
+    expect(pageText(pages[0]!)).toContain('Stay');
+    expect(pageText(pages[0]!)).toContain('before');
+    expect(pageText(pages[1]!)).toBe('after-break');
+  });
+
+  it('lays out a content block that asks for a break before it', () => {
+    const first = new ParagraphBlock([run('alpha')], style, {}, 'P');
+    const second = new ParagraphBlock([run('bravo')], style, {}, 'P');
+    Object.assign(second, { forceBreakBefore: true });
+    const pages = paginate([first, second], ctx, geom);
+    expect(pages.length).toBe(2);
+    expect(pageText(pages[0]!)).toBe('alpha');
+    expect(pageText(pages[1]!)).toBe('bravo');
+  });
+
+  it('hard-splits a glued tail that is wider than the next line', () => {
+    const wide = measurer.width('Helvetica', 'aa BBBB', 12);
+    const narrow = measurer.width('Helvetica', 'BB', 12);
+    const lines = breakLines(
+      [run('aa '), run('BBBB'), run('CCCC')],
+      measurer,
+      { widthAt: (i) => (i === 0 ? wide + 0.5 : narrow), align: 'left', lineHeight: 1.25, fallback: { font: 'Helvetica', size: 12 } },
+    );
+    const painted = lines.map((l) => l.runs.map((r) => r.text).join(''));
+    // The space after "aa" is the line break, so it is not painted. The carried tail is split.
+    expect(painted[0]).toBe('aa');
+    expect(painted.slice(1).join('')).toBe('BBBBCCCC');
+    lines.forEach((line, i) => {
+      const limit = i === 0 ? wide + 0.5 : narrow;
+      expect(line.width).toBeLessThanOrEqual(limit + 1e-6);
+    });
+  });
+});
+
+describe('subset size of a two-page article', () => {
+  it('keeps the embedded faces far smaller than the full font tables', () => {
+    const regular = new Uint8Array(readFileSync(fileURLToPath(new URL('../../core/test/fixtures/Ubuntu-R.ttf', import.meta.url))));
+    const bold = new Uint8Array(readFileSync(fileURLToPath(new URL('../../core/test/fixtures/Ubuntu-B.ttf', import.meta.url))));
+    const doc = new LayoutDocument({
+      pageSize: 'A4',
+      margins: { top: 64, bottom: 72, left: 64, right: 64 },
+      title: 'Article',
+      defaultStyle: { font: 'body', size: 11, lineHeight: 1.35 },
+    });
+    doc.font('body', regular);
+    doc.font('bold', bold);
+    const para = 'The quick brown fox jumps over the lazy dog. Measurements stay stable across machines, and every line uses the embedded face. '.repeat(12);
+    doc.heading('A short article about fonts', 1);
+    doc.paragraph([{ text: 'Summary. ', font: 'bold' }, { text: para }]);
+    doc.heading('Second section', 2);
+    doc.paragraph(para);
+    doc.paragraph('Soft hyphen \u00ad, emoji \u{1F600}, missing dash \u2011, and a second address https://web.archive.org/web/2024/https://example.org/a/long/path in the body. ' + para);
+    const bytes = doc.build();
+    const pdf = latin1(bytes);
+    expect((pdf.match(/\/Type \/Page /g) ?? []).length).toBe(2);
+    const fonts: number[] = [];
+    const re = /<< \/Filter \/FlateDecode \/Length (\d+) \/Length1 (\d+)>>\nstream\n/g;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(pdf))) fonts.push(Number(m[2]));
+    // Before compaction this document carried 39244 + 30432 bytes of font data.
+    expect(fonts.length).toBe(2);
+    expect(fonts.reduce((a, b) => a + b, 0)).toBeLessThan(25000);
+  });
+});
+
+describe('catalog language', () => {
   it('passes the language to the catalog', () => {
     const doc = new LayoutDocument({ title: 'T', lang: 'en' });
     doc.paragraph('Hello.');

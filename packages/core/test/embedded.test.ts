@@ -44,7 +44,9 @@ describe('embedded TrueType fonts in Document', () => {
     expect(pdf).toContain('/Subtype /CIDFontType2');
     expect(pdf).toContain('/ToUnicode');
     expect(pdf).toContain('/FontFile2');
-    expect(pdf).toContain('/CIDToGIDMap /Identity');
+    // CIDs are not glyph ids. A stream maps them; /Identity would collapse shared glyphs.
+    expect(pdf).not.toContain('/CIDToGIDMap /Identity');
+    expect(pdf).toMatch(/\/CIDToGIDMap \d+ 0 R/);
     expect(pdf).toContain('/FontDescriptor');
     // regression: the Type0 font must be wired into /Resources, not just emitted
     expect(pdf).toMatch(/\/Font << \/F\d+ \d+ 0 R >>/);
@@ -77,15 +79,22 @@ describe('embedded TrueType fonts in Document', () => {
     expect(Buffer.from(a).equals(Buffer.from(b))).toBe(true);
   });
 
-  it('encodes glyph ids as big-endian hex in content streams', () => {
+  it('encodes the only used code point as CID 1, not its original glyph id', () => {
     const doc = new Document();
     const font = doc.embedFont(fontBytes);
     const page = doc.addPage();
     page.text('A', 50, 60, { font, size: 18 });
     const bytes = doc.build();
-    // 'A' maps through cmap to a gid; encoded as 4-hex-digit BE in a hex-string Tj
-    const gid = font['font'].mapCodepoint(0x41).toString(16).padStart(4, '0');
     const streams = inflatedStreams(bytes);
-    expect(streams.some((s) => s.includes(`<${gid}> Tj`))).toBe(true);
+    // Sorted code points: 'A' is CID 1. Its TrueType gid is 36 (0x0024), which must not be the operand.
+    expect(streams.some((s) => s.includes('<0001> Tj'))).toBe(true);
+    expect(streams.some((s) => s.includes('<0024> Tj'))).toBe(false);
+    const cmap = streams.find((s) => s.includes('begincmap'));
+    expect(cmap).toContain('<0001> <0041>');
+    // Closure is .notdef then A, so CID 1's map entry is the renumbered gid 1.
+    const map = streams.find(
+      (s) => s.length === 4 && s.charCodeAt(0) === 0 && s.charCodeAt(1) === 0 && s.charCodeAt(2) === 0 && s.charCodeAt(3) === 1,
+    );
+    expect(map).toBeDefined();
   });
 });
