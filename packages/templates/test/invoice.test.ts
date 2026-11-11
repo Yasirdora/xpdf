@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { extractAttachment } from '@omnipdf/core';
-import { applyFacturX, type Invoice } from '@omnipdf/einvoice';
+import { extractAttachment } from '@xpdf/core';
+import { applyFacturX, type Invoice } from '@xpdf/einvoice';
 import { invoiceDocument, fmtMoney } from '../src/invoice.js';
 
 const latin1 = (u: Uint8Array) => [...u].map((b) => String.fromCharCode(b)).join('');

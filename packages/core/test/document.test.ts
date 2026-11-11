@@ -29,9 +29,9 @@ function tinyJpeg(): Uint8Array {
 
 describe('Document', () => {
   it('builds a valid single-page PDF with text', () => {
-    const doc = new Document({ title: 'Test', author: 'OmniPDF' });
+    const doc = new Document({ title: 'Test', author: 'xpdf' });
     const page = doc.addPage();
-    page.text('Hello OmniPDF', 48, 48, { size: 24 });
+    page.text('Hello xpdf', 48, 48, { size: 24 });
     const bytes = doc.build();
     const str = latin1(bytes);
 
@@ -43,7 +43,7 @@ describe('Document', () => {
     expect(str).not.toContain('/CreationDate'); // deterministic by default
 
     const streams = inflatedStreams(bytes);
-    expect(streams.some((s) => s.includes('(Hello OmniPDF) Tj'))).toBe(true);
+    expect(streams.some((s) => s.includes('(Hello xpdf) Tj'))).toBe(true);
   });
 
   it('converts top-left coordinates to PDF space', () => {
@@ -108,10 +108,10 @@ describe('Document', () => {
   it('emits link annotations', () => {
     const doc = new Document();
     const page = doc.addPage();
-    page.link('https://omnipdf.dev', 10, 10, 100, 14);
+    page.link('https://example.org', 10, 10, 100, 14);
     const str = latin1(doc.build());
     expect(str).toContain('/Subtype /Link');
-    expect(str).toContain('/URI (https://omnipdf.dev)');
+    expect(str).toContain('/URI (https://example.org)');
     expect(str).toMatch(/\/Annots \[\d+ 0 R\]/);
   });
 

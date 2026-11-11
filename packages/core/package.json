@@ -1,7 +1,7 @@
 {
-  "name": "@omnipdf/core",
+  "name": "@xpdf/core",
   "version": "0.1.0",
-  "description": "Zero-dependency PDF writer: objects, streams, deterministic deflate, base-14 fonts, images, links, outlines, attachments, XMP metadata. The foundation of the OmniPDF document engine.",
+  "description": "Zero-dependency PDF writer: objects, streams, deterministic deflate, base-14 fonts, images, links, outlines, attachments, XMP metadata. The foundation of the xpdf document engine.",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -23,12 +23,12 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/OmniPDF/omnipdf.git",
+    "url": "git+https://github.com/Yasirdora/xpdf.git",
     "directory": "packages/core"
   },
-  "homepage": "https://github.com/OmniPDF/omnipdf/tree/main/packages/core",
+  "homepage": "https://github.com/Yasirdora/xpdf/tree/main/packages/core",
   "bugs": {
-    "url": "https://github.com/OmniPDF/omnipdf/issues"
+    "url": "https://github.com/Yasirdora/xpdf/issues"
   },
   "scripts": {
     "build": "tsup",

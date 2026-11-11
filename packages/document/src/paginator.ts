@@ -58,8 +58,27 @@ export function paginate(blocks: Block[], ctx: PaginationContext, geom: PageGeom
 
   while (state.bi < blocks.length || state.pendingHeaders) {
     const result = layoutPage(blocks, state, ctx, geom, cache, pages.length + 1);
+    const next = result.endState;
+    if (
+      result.layout.placements.length === 0 &&
+      next.bi === state.bi &&
+      next.si === state.si &&
+      next.pendingHeaders === state.pendingHeaders
+    ) {
+      // an empty page that leaves the stream where it was would repeat forever
+      throw new Error(`Pagination made no progress on page ${pages.length + 1} (block ${state.bi}).`);
+    }
+    // A forced break or a header-only attempt can advance the stream without
+    // placing anything. That is not a page.
+    if (result.layout.placements.length === 0) {
+      state = next;
+      if (state.bi >= blocks.length && state.pendingHeaders) {
+        state = { ...state, pendingHeaders: null };
+      }
+      continue;
+    }
     pages.push(result.layout);
-    state = result.endState;
+    state = next;
     // defensive: headers pending with no rows left behind them
     if (state.bi >= blocks.length && state.pendingHeaders) {
       state = { ...state, pendingHeaders: null };
@@ -88,14 +107,7 @@ function layoutPage(
     items = packed.items;
     endState = packed.endState;
 
-    const noteIds: number[] = [];
-    for (const it of items) {
-      if (it.placement.slice.kind === 'text') {
-        for (const line of it.placement.slice.lines) {
-          for (const id of line.noteIds) if (!noteIds.includes(id)) noteIds.push(id);
-        }
-      }
-    }
+    const noteIds = noteIdsOn(items);
     noteSlices = buildNoteSlices(noteIds, ctx, geom);
     const notesH = noteSlices.reduce((a, s) => a + s.height, 0);
     const newAvail = contentH - notesH;
@@ -163,12 +175,11 @@ function pack(
   while (bi < blocks.length) {
     const block = blocks[bi]!;
 
-    if (block.forceBreakBefore) {
-      if (items.length === 0) {
-        bi++; // already at a page top: the break is a no-op
-        continue;
-      }
-      return finishPage(items, { bi: bi + 1, si: 0, pendingHeaders: null });
+    if (block.forceBreakBefore && si === 0 && items.length > 0) {
+      // Break before this block starts, then lay it out on the next page.
+      // Do not rewind a keep-with-next heading across the forced break, and
+      // do not skip the block. A block already started (si > 0) keeps going.
+      return { items, endState: { bi, si: 0, pendingHeaders: null } };
     }
 
     const slices = layoutOf(block);
@@ -178,7 +189,7 @@ function pack(
     if (si === 0 && block.props.keepTogether && slices.length) {
       const totalH = slices.reduce((a, s) => a + s.height, 0);
       if (totalH > availH - y + EPS && y > EPS) {
-        return finishPage(items, { bi, si: 0, pendingHeaders: null });
+        return finishPage(items, { bi, si: 0, pendingHeaders: null }, blocks.length);
       }
     }
 
@@ -209,15 +220,35 @@ function pack(
         continue;
       }
 
-      // ---- overflow: widow/orphan rules, then break ----
+      // ---- overflow ----
+      if (s.kind === 'space') {
+        // a gap that does not fit simply ends the page; it would vanish at
+        // the next page top anyway, and it must not trigger widow rules
+        return finishPage(items, { bi, si: si + 1, pendingHeaders: null }, blocks.length);
+      }
+
+      if (items.length === 0) {
+        // nothing on the page yet and the slice is taller than the page:
+        // place it overflowing rather than loop on an empty page
+        items.push({ placement: { slice: s, x: 0, y }, block, blockIndex: bi, sliceIndex: si });
+        y += s.height;
+        si++;
+        continue;
+      }
+
+      // ---- widow/orphan rules, then break ----
       if (block instanceof ParagraphBlock) {
         const placedHere = items.filter(
           (it) => it.block === block && it.placement.slice.kind === 'text',
         ).length;
         const orphans = block.props.orphans ?? 2;
         const widows = block.props.widows ?? 2;
-        const textTotal = slices.filter((x) => x.kind === 'text').length;
-        const remainingText = textTotal - placedHere;
+        // Lines from this slice onward, not "total minus lines on this page":
+        // lines already placed on earlier pages are not still remaining.
+        let remainingText = 0;
+        for (let k = si; k < slices.length; k++) {
+          if (slices[k]!.kind === 'text') remainingText++;
+        }
         let rewind = 0;
         if (placedHere > 0 && placedHere < orphans) {
           rewind = placedHere; // too few lines at the bottom: move them all
@@ -225,7 +256,7 @@ function pack(
           const need = widows - remainingText;
           rewind = placedHere - need >= orphans ? need : placedHere;
         }
-        if (rewind > 0) {
+        if (rewind > 0 && rewind < items.length) {
           let removed = 0;
           while (removed < rewind && items.length) {
             const last = items[items.length - 1]!;
@@ -234,44 +265,48 @@ function pack(
             items.pop();
             removed++;
           }
-          return finishPage(items, { bi, si: si - removed, pendingHeaders: null });
-        }
-        if (placedHere === 0 && items.length === 0) {
-          // a single line taller than an empty page cannot happen; guard anyway
-          items.push({ placement: { slice: s, x: 0, y }, block, blockIndex: bi, sliceIndex: si });
-          si++;
-          continue;
+          return finishPage(items, { bi, si: si - removed, pendingHeaders: null }, blocks.length);
         }
       }
 
-      // pathological: notes left room for repeated headers but no row —
-      // drop the headers so the table makes progress on the next page
+      // Repeated headers fit but the next row does not. A page of only
+      // headers would be blank. Drop them and place the row here; headers
+      // stay with a row when the two fit together on a normal break.
       if (
         start.pendingHeaders !== null &&
         items.length > 0 &&
         items.every((it) => it.sliceIndex === -1)
       ) {
-        return { items: [], endState: { bi, si: start.si, pendingHeaders: null } };
+        items.length = 0;
+        y = 0;
+        items.push({ placement: { slice: s, x: 0, y }, block, blockIndex: bi, sliceIndex: si });
+        y += s.height;
+        si++;
+        continue;
       }
 
-      return finishPage(items, { bi, si, pendingHeaders: headerSlicesOf(block, slices, si) });
+      return finishPage(items, { bi, si, pendingHeaders: headerSlicesOf(block, slices, si) }, blocks.length);
     }
 
     si = 0;
     bi++;
   }
-  return finishPage(items, { bi, si: 0, pendingHeaders: null });
+  return finishPage(items, { bi, si: 0, pendingHeaders: null }, blocks.length);
 }
 
 /**
  * Rewind trailing keep-with-next blocks stranded at the page end (a heading
  * whose paragraph starts on the next page must move with it; chains of
- * keep-with-next blocks rewind together).
+ * keep-with-next blocks rewind together). Nothing rewinds when the document
+ * has ended (there is no next block to keep with) or when the rewind would
+ * leave the page empty (the next page would start in the same place).
  */
 function finishPage(
   items: PlacedItem[],
   end: StreamState,
+  blockCount: number,
 ): { items: PlacedItem[]; endState: StreamState } {
+  if (end.bi >= blockCount) return { items, endState: end };
   for (;;) {
     const last = items[items.length - 1];
     if (!last || !last.block.props.keepWithNext) break;
@@ -279,11 +314,28 @@ function finishPage(
     let firstIdx = items.length - 1;
     while (firstIdx > 0 && items[firstIdx - 1]!.block === last.block) firstIdx--;
     const startsHere = items[firstIdx]!.sliceIndex === 0;
-    if (!startsHere) break;
+    if (!startsHere || firstIdx === 0) break;
     items.length = firstIdx;
     end = { bi: last.blockIndex, si: 0, pendingHeaders: null };
   }
   return { items, endState: end };
+}
+
+/** Footnote ids referenced by text lines and by lines inside table cells. */
+function noteIdsOn(items: PlacedItem[]): number[] {
+  const noteIds: number[] = [];
+  const add = (id: number) => {
+    if (!noteIds.includes(id)) noteIds.push(id);
+  };
+  for (const it of items) {
+    const slice = it.placement.slice;
+    if (slice.kind === 'text') {
+      for (const line of slice.lines) for (const id of line.noteIds) add(id);
+    } else if (slice.kind === 'table-row') {
+      for (const cell of slice.cells) for (const line of cell.lines) for (const id of line.noteIds) add(id);
+    }
+  }
+  return noteIds;
 }
 
 function headerSlicesOf(block: Block, slices: Slice[], cursor: number): Slice[] | null {

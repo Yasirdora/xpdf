@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { extractAttachment } from '@omnipdf/core';
+import { extractAttachment } from '@xpdf/core';
 import { reportDocument, validateReport, type Report } from '../src/report.js';
 
 const latin1 = (u: Uint8Array) => [...u].map((b) => String.fromCharCode(b)).join('');

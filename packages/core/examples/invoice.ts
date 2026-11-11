@@ -1,5 +1,5 @@
 /**
- * Example: a professional invoice PDF with @omnipdf/core.
+ * Example: a professional invoice PDF with @xpdf/core.
  *
  * Demonstrates: styled text (AFM-aligned), shapes, links, outline bookmarks,
  * XMP metadata, and an embedded machine-readable payload — the "living PDF"
@@ -22,7 +22,7 @@ const invoice = {
   issueDate: '2026-08-11',
   dueDate: '2026-09-10',
   from: {
-    name: 'OmniPDF Studio',
+    name: 'xpdf Studio',
     details: 'Keizersgracht 221\n1016 DV Amsterdam\nNetherlands\nVAT NL865432100B01',
   },
   to: {
@@ -52,7 +52,7 @@ const doc = new Document({
   title: `Invoice ${invoice.number}`,
   author: invoice.from.name,
   subject: `Invoice ${invoice.number} — ${invoice.to.name}`,
-  keywords: ['invoice', invoice.number, 'omnipdf'],
+  keywords: ['invoice', invoice.number, 'xpdf'],
 });
 
 const page = doc.addPage(); // A4
@@ -143,11 +143,11 @@ y += 15;
 page.text(invoice.notes, M, y, { size: 9.5, color: MUTED });
 
 // a link in the footer
-page.text('Generated with @omnipdf/core —', M, 800, { size: 8, color: MUTED });
+page.text('Generated with @xpdf/core —', M, 800, { size: 8, color: MUTED });
 const label = 'zero-dependency deterministic PDFs';
-const labelX = M + getFontMetrics('Helvetica').widthAt('Generated with @omnipdf/core — ', 8);
+const labelX = M + getFontMetrics('Helvetica').widthAt('Generated with @xpdf/core — ', 8);
 page.text(label, labelX, 800, { size: 8, color: '#0066cc' });
-page.link('https://github.com/omnipdf/omnipdf', labelX, 792, getFontMetrics('Helvetica').widthAt(label, 8), 10, { underline: '#0066cc' });
+page.link('https://github.com/Yasirdora/xpdf', labelX, 792, getFontMetrics('Helvetica').widthAt(label, 8), 10, { underline: '#0066cc' });
 
 // bookmarks
 doc.setOutlines([
@@ -159,8 +159,8 @@ doc.setOutlines([
 // the living payload: this PDF carries its own source
 doc.attach(
   'document.json',
-  new TextEncoder().encode(JSON.stringify({ spec: 'omnipdf:1', type: 'invoice', data: invoice }, null, 2)),
-  { mime: 'application/json', description: 'OmniPDF source document' },
+  new TextEncoder().encode(JSON.stringify({ spec: 'xpdf:1', type: 'invoice', data: invoice }, null, 2)),
+  { mime: 'application/json', description: 'xpdf source document' },
 );
 
 const out = join(dirname(fileURLToPath(import.meta.url)), 'invoice.pdf');

@@ -23,6 +23,8 @@ export interface StyledRun {
   noteId?: number;
   /** Raised baseline (superscript note markers). */
   dy?: number;
+  /** Link target carried through to the positioned runs. */
+  href?: string;
 }
 
 interface Token {
@@ -36,6 +38,9 @@ interface Token {
   glue: boolean;
   noteId?: number;
   forcedBreak?: boolean;
+  href?: string;
+  /** A line may break before this piece though no space precedes it: a break point inside a web address. */
+  breakBefore?: boolean;
 }
 
 const NBSP = 0x00a0;
@@ -54,48 +59,107 @@ export interface BreakOptions {
   fallback: { font: string; size: number };
 }
 
+/** Characters a web address may break after, so it can wrap across lines. */
+const URL_BREAK_AFTER = new Set(['/', '-', '.', '?', '&', '=', '_', '#', '~']);
+
+/** Whether a word looks like a web address (and may break inside). */
+function isUrlLike(word: string): boolean {
+  return /^[([<"']*(?:[a-z][a-z0-9+.-]*:\/\/|www\.)/i.test(word);
+}
+
+/**
+ * Pieces of a web address, each ending after a break character, so the
+ * greedy breaker can wrap it like words without glue. Every "://" is kept
+ * intact (a break after its last slash is allowed); breaks before a later
+ * scheme are allowed too.
+ */
+function urlPieces(word: string): string[] {
+  const schemes: Array<[number, number]> = [];
+  let search = 0;
+  while (search < word.length) {
+    const at = word.indexOf('://', search);
+    if (at === -1) break;
+    schemes.push([at, at + 3]);
+    search = at + 3;
+  }
+  // A character whose end index sits strictly inside a "://" must not end a piece.
+  const insideScheme = (end: number) => schemes.some(([start, stop]) => end > start && end < stop);
+  const pieces: string[] = [];
+  let piece = '';
+  let index = 0;
+  for (const ch of word) {
+    piece += ch;
+    index += ch.length;
+    if (URL_BREAK_AFTER.has(ch) && !insideScheme(index)) {
+      pieces.push(piece);
+      piece = '';
+    }
+  }
+  if (piece) pieces.push(piece);
+  return pieces;
+}
+
 /** Split styled runs into tokens (words, glue, forced breaks, note markers). */
 export function tokenize(runs: StyledRun[], measurer: Measurer): Token[] {
   const tokens: Token[] = [];
   for (const run of runs) {
     let word = '';
+    const link = run.href !== undefined ? { href: run.href } : {};
     const flushWord = () => {
       if (!word) return;
-      tokens.push({
-        text: word,
-        font: run.font,
-        size: run.size,
-        color: run.color,
-        dy: run.dy ?? 0,
-        width: measurer.width(run.font, word, run.size),
-        glue: false,
-        ...(run.noteId !== undefined ? { noteId: run.noteId } : {}),
+      // The footnote id lives only on the marker token: a word carrying it
+      // would claim the note for every line the run spans.
+      const pieces = isUrlLike(word) ? urlPieces(word) : [word];
+      pieces.forEach((piece, i) => {
+        tokens.push({
+          text: piece,
+          font: run.font,
+          size: run.size,
+          color: run.color,
+          dy: run.dy ?? 0,
+          width: measurer.width(run.font, piece, run.size),
+          glue: false,
+          ...(i > 0 ? { breakBefore: true } : {}),
+          ...link,
+        });
       });
       word = '';
     };
-    for (const ch of run.text) {
-      const cp = ch.codePointAt(0)!;
-      if (ch === '\n') {
+    const text = run.text;
+    for (let i = 0; i < text.length; ) {
+      const cp = text.codePointAt(i)!;
+      const ch = String.fromCodePoint(cp);
+      if (cp === 0x0d || cp === 0x0a) {
         flushWord();
+        // CRLF is one break, not two.
+        i += cp === 0x0d && text.charCodeAt(i + 1) === 0x0a ? 2 : ch.length;
         tokens.push({
           text: '', font: run.font, size: run.size, color: run.color, dy: 0, width: 0,
           glue: false, forcedBreak: true,
         });
-      } else if (isSpace(cp)) {
+        continue;
+      }
+      if (isSpace(cp)) {
         flushWord();
+        // Draw glue the font cannot encode as a normal space, but keep the
+        // width already measured for the original character.
+        const shown = measurer.supports(run.font, ch) ? ch : ' ';
+        const width = measurer.width(run.font, ch, run.size);
         const prev = tokens[tokens.length - 1];
-        if (prev?.glue && prev.font === run.font && prev.size === run.size) {
-          prev.text += ch;
-          prev.width += measurer.width(run.font, ch, run.size);
+        if (prev?.glue && prev.font === run.font && prev.size === run.size && prev.href === run.href) {
+          prev.text += shown;
+          prev.width += width;
         } else {
           tokens.push({
-            text: ch, font: run.font, size: run.size, color: run.color, dy: 0,
-            width: measurer.width(run.font, ch, run.size), glue: true,
+            text: shown, font: run.font, size: run.size, color: run.color, dy: 0,
+            width, glue: true, ...link,
           });
         }
-      } else {
-        word += ch;
+        i += ch.length;
+        continue;
       }
+      word += ch;
+      i += ch.length;
     }
     flushWord();
     // footnote marker: superscript number glued AFTER the run's last word
@@ -111,6 +175,7 @@ export function tokenize(runs: StyledRun[], measurer: Measurer): Token[] {
         width: measurer.width(run.font, text, markerSize),
         glue: false,
         noteId: run.noteId,
+        ...link,
       });
     }
   }
@@ -134,10 +199,28 @@ function splitToken(token: Token, maxWidth: number, measurer: Measurer): [Token,
   return [token, null];
 }
 
+/**
+ * How many tokens at the end of `line` are glued to `next`, with no space and
+ * no address break point between them: the pieces of one word whose style or
+ * link changes part-way, such as a link and the full stop after it.
+ */
+function gluedTail(line: Token[], next: Token): number {
+  let count = 0;
+  let after = next;
+  for (let i = line.length - 1; i >= 0; i--) {
+    const t = line[i]!;
+    if (t.glue || t.forcedBreak || after.breakBefore) break;
+    count++;
+    after = t;
+  }
+  return count;
+}
+
 /** Greedy break of styled runs into positioned lines. */
 export function breakLines(runs: StyledRun[], measurer: Measurer, opts: BreakOptions): LayoutLine[] {
   const lines: LayoutLine[] = [];
-  let pending = tokenize(runs, measurer);
+  const pending = tokenize(runs, measurer);
+  let next = 0;
   let current: Token[] = [];
   let currentWidth = 0;
   let lineIndex = 0;
@@ -153,8 +236,8 @@ export function breakLines(runs: StyledRun[], measurer: Measurer, opts: BreakOpt
     lineIndex++;
   };
 
-  while (pending.length) {
-    const token = pending.shift()!;
+  while (next < pending.length) {
+    const token = pending[next++]!;
     if (token.forcedBreak) {
       emit(true);
       continue;
@@ -163,6 +246,23 @@ export function breakLines(runs: StyledRun[], measurer: Measurer, opts: BreakOpt
     if (token.glue && current.length === 0) continue; // no leading glue
     if (current.length && currentWidth + token.width > maxWidth) {
       if (!token.glue) {
+        // The start of the word may already sit on this line in another
+        // style: carry it down too, then place the token again after it.
+        const carry = gluedTail(current, token);
+        if (carry > 0 && carry < current.length) {
+          const moved = current.splice(current.length - carry);
+          const movedWidth = moved.reduce((sum, t) => sum + t.width, 0);
+          currentWidth -= movedWidth;
+          emit(false);
+          // Put the carried tokens back through the breaker. The next line
+          // can be narrower (a negative first-line indent), and an overlong
+          // carry must hard-split the same way any other word does.
+          next--;
+          pending.splice(next, 0, ...moved);
+          current = [];
+          currentWidth = 0;
+          continue;
+        }
         // word doesn't fit: emit current, place word on next line (split if needed)
         emit(false);
         let t: Token | null = token;
@@ -253,26 +353,33 @@ function positionLine(
   const runs: PositionedRun[] = [];
   const noteIds: number[] = [];
   let x = shiftX;
-  // Folding glue into runs is only exact when it draws at natural width.
-  // Under justification the stretch lives in positioning only, so glue
-  // stays out of the runs and words are placed absolutely.
-  const foldGlue = extraPerGlue === 0;
+  // Under justification the stretch lives in positioning only: each space is
+  // still painted at its natural width, so copy, search and screen readers
+  // keep the word breaks, and the next word starts a new run after the gap.
+  // Glue drawn as U+0020 but measured wider (a missing em space) must stay
+  // its own run, or the following word would be painted at the space glyph's
+  // advance instead of the measured width.
+  const natural = (font: string, text: string, size: number) => measurer.width(font, text, size);
+  const holdsGap = (font: string, text: string, size: number, layoutWidth: number) =>
+    Math.abs(natural(font, text, size) - layoutWidth) > 1e-6;
   for (const t of tokens) {
     const w = t.width + (t.glue ? extraPerGlue : 0);
-    if (t.glue && !foldGlue) {
-      x += w;
-      continue;
-    }
+    const drawn = t.glue ? t.width : w;
     const prev = runs[runs.length - 1];
+    const thisGap = t.glue && holdsGap(t.font, t.text, t.size, t.width);
+    const prevGap = prev ? holdsGap(prev.font, prev.text, prev.size, prev.width) : false;
     const mergeable =
-      prev && prev.font === t.font && prev.size === t.size && prev.color === t.color &&
-      prev.dy === t.dy && prev.x + prev.width === x;
+      prev && !thisGap && !prevGap && prev.font === t.font && prev.size === t.size && prev.color === t.color &&
+      prev.dy === t.dy && prev.href === t.href && prev.x + prev.width === x;
     if (mergeable) {
       // one Tj per styled segment keeps extraction clean and streams small
       prev.text += t.text;
-      prev.width += w;
+      prev.width += drawn;
     } else {
-      runs.push({ text: t.text, font: t.font, size: t.size, color: t.color, x, width: w, dy: t.dy });
+      runs.push({
+        text: t.text, font: t.font, size: t.size, color: t.color, x, width: drawn, dy: t.dy,
+        ...(t.href !== undefined ? { href: t.href } : {}),
+      });
     }
     if (!t.glue && t.noteId !== undefined && !noteIds.includes(t.noteId)) noteIds.push(t.noteId);
     x += w;

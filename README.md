@@ -1,21 +1,21 @@
-# OmniPDF
+# xpdf
 
 **The universal structured-document PDF engine.** Zero runtime dependencies, byte-deterministic output, and every generated PDF carries its own editable source — download it, drag it back, keep editing.
 
 ```
-npm install @omnipdf/core        # the writer
-npm install @omnipdf/document    # + layout engine (paragraphs, tables, footnotes, TTF fonts)
-npm install @omnipdf/einvoice    # + EN 16931 e-invoicing (Factur-X / ZUGFeRD)
-npm install @omnipdf/templates   # + invoice, CV, report, letter, paper, screenplay
+npm install @xpdf/core        # the writer
+npm install @xpdf/document    # + layout engine (paragraphs, tables, footnotes, TTF fonts)
+npm install @xpdf/einvoice    # + EN 16931 e-invoicing (Factur-X / ZUGFeRD)
+npm install @xpdf/templates   # + invoice, CV, report, letter, paper, screenplay
 ```
 
-## Why OmniPDF
+## Why xpdf
 
 | | |
 |---|---|
 | **Zero dependencies** | Nothing between you and the bytes. Runs unchanged in Node 18+, browsers, edge workers, embedded JS. |
 | **Byte-deterministic** | Own fixed-Huffman DEFLATE, no timestamps, no random IDs, no ICU. Same input → same bytes, forever. Diffable, signable, cacheable. |
-| **Living PDFs** | Every document embeds its source as `document.json`. Drag a generated file back into any OmniPDF tool and it is editable again — the file *is* the project file. |
+| **Living PDFs** | Every document embeds its source as `document.json`. Drag a generated file back into any xpdf tool and it is editable again — the file *is* the project file. |
 | **Legally real e-invoicing** | EN 16931 model + Factur-X/ZUGFeRD CII XML + PDF/A-3B container, in one call. |
 | **Real typography** | Embedded TrueType fonts with subsetting and ToUnicode maps; footnotes fixpoint-resolved by the paginator. |
 | **A screenplay engine** | Full Fountain import with industry-standard layout: `(MORE)`/`(CONT'D)`, dual dialogue, scene-heading orphan rules. Nobody else in JS does this. |
@@ -25,8 +25,8 @@ npm install @omnipdf/templates   # + invoice, CV, report, letter, paper, screenp
 ### An invoice that is also a legal e-invoice
 
 ```ts
-import { invoiceDocument } from '@omnipdf/templates';
-import { applyFacturX } from '@omnipdf/einvoice';
+import { invoiceDocument } from '@xpdf/templates';
+import { applyFacturX } from '@xpdf/einvoice';
 import { readFileSync, writeFileSync } from 'node:fs';
 
 const invoice = {
@@ -57,7 +57,7 @@ writeFileSync('invoice.pdf', doc.build());
 ### A screenplay from Fountain source
 
 ```ts
-import { screenplayDocument } from '@omnipdf/templates';
+import { screenplayDocument } from '@xpdf/templates';
 
 const { doc } = screenplayDocument(`
 INT. BABBAGE'S WORKSHOP - DAY
@@ -77,7 +77,7 @@ writeFileSync('screenplay.pdf', doc.build());
 ### The low-level writer
 
 ```ts
-import { Document } from '@omnipdf/core';
+import { Document } from '@xpdf/core';
 
 const pdf = new Document({ title: 'Hello' });
 const page = pdf.addPage(595.28, 841.89);
@@ -89,18 +89,18 @@ const bytes = pdf.build(); // Uint8Array — same input, same bytes, every time
 
 | Package | What it is |
 |---|---|
-| [`@omnipdf/core`](packages/core) | PDF writer: objects, streams, deterministic deflate, base-14 + embedded TTF fonts (subset, ToUnicode), JPEG, links, outlines, attachments, XMP, PDF/A-3, incremental reader (`extractAttachment`). |
-| [`@omnipdf/document`](packages/document) | Layout engine: paragraphs with mixed runs, tables, images, keep/orphan/widow rules, footnotes (fixpoint pagination), headers/footers, convergence paginator. |
-| [`@omnipdf/einvoice`](packages/einvoice) | EN 16931 invoice model, decimal-exact totals, Factur-X/ZUGFeRD CII XML (EN16931 profile), one-call `applyFacturX`. |
-| [`@omnipdf/templates`](packages/templates) | Ready documents: **invoice, CV, report, letter, academic paper, screenplay** (with a complete Fountain parser). Each embeds its living `document.json` payload. |
-| [`apps/studio`](apps/studio) | OmniPDF Studio — browser playground: edit data, live-preview, download, drag the PDF back and keep editing. `npm run dev -w @omnipdf/studio`. |
+| [`@xpdf/core`](packages/core) | PDF writer: objects, streams, deterministic deflate, base-14 + embedded TTF fonts (subset, ToUnicode), JPEG, links, outlines, attachments, XMP, PDF/A-3, incremental reader (`extractAttachment`). |
+| [`@xpdf/document`](packages/document) | Layout engine: paragraphs with mixed runs, tables, images, keep/orphan/widow rules, footnotes (fixpoint pagination), headers/footers, convergence paginator. |
+| [`@xpdf/einvoice`](packages/einvoice) | EN 16931 invoice model, decimal-exact totals, Factur-X/ZUGFeRD CII XML (EN16931 profile), one-call `applyFacturX`. |
+| [`@xpdf/templates`](packages/templates) | Ready documents: **invoice, CV, report, letter, academic paper, screenplay** (with a complete Fountain parser). Each embeds its living `document.json` payload. |
+| [`apps/studio`](apps/studio) | xpdf Studio — browser playground: edit data, live-preview, download, drag the PDF back and keep editing. `npm run dev -w @xpdf/studio`. |
 
 ## The living-PDF idea
 
-Every file OmniPDF writes embeds its own source document (`document.json`, AFRelationship `/Source`, PDF/A-3 safe):
+Every file xpdf writes embeds its own source document (`document.json`, AFRelationship `/Source`, PDF/A-3 safe):
 
 ```ts
-import { extractAttachment } from '@omnipdf/core';
+import { extractAttachment } from '@xpdf/core';
 
 const json = extractAttachment(pdfBytes, 'document.json');
 // → the exact invoice / CV / report / letter / paper data,
@@ -136,7 +136,7 @@ npm install
 npm run build       # all packages
 npm test            # 179 tests across 4 packages
 npm run typecheck
-npm run dev -w @omnipdf/studio   # the playground
+npm run dev -w @xpdf/studio   # the playground
 ```
 
 Monorepo (npm workspaces). Each package builds ESM + CJS + types with tsup. Example PDFs are generated artifacts (`packages/*/examples/`, gitignored); external validation scripts live in `scripts/`.

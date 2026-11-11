@@ -1,5 +1,5 @@
 {
-  "name": "@omnipdf/studio",
+  "name": "@xpdf/studio",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -10,10 +10,10 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@omnipdf/core": "0.1.0",
-    "@omnipdf/document": "0.1.0",
-    "@omnipdf/einvoice": "0.1.0",
-    "@omnipdf/templates": "0.1.0",
+    "@xpdf/core": "0.1.0",
+    "@xpdf/document": "0.1.0",
+    "@xpdf/einvoice": "0.1.0",
+    "@xpdf/templates": "0.1.0",
     "@hookform/resolvers": "^5.2.2",
     "@radix-ui/react-accordion": "^1.2.12",
     "@radix-ui/react-alert-dialog": "^1.1.15",

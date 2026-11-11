@@ -1,13 +1,13 @@
-# @omnipdf/templates
+# @xpdf/templates
 
-Ready-made documents on the OmniPDF engine: **invoice, CV, report, letter, academic paper, screenplay** — every one a living PDF that carries its own editable source.
+Ready-made documents on the xpdf engine: **invoice, CV, report, letter, academic paper, screenplay** — every one a living PDF that carries its own editable source.
 
 ```bash
-npm install @omnipdf/templates
+npm install @xpdf/templates
 ```
 
 ```ts
-import { cvDocument, letterDocument, screenplayDocument } from '@omnipdf/templates';
+import { cvDocument, letterDocument, screenplayDocument } from '@xpdf/templates';
 
 const cv  = cvDocument({ name: 'Ada Lovelace', experience: [/*…*/] });
 const fx  = screenplayDocument(`INT. WORKSHOP - DAY\n\nADA\nIt begins.\n`);
@@ -19,7 +19,7 @@ fx.doc.build();  // US Letter screenplay + embedded Fountain source
 
 | | |
 |---|---|
-| `invoiceDocument` | Branded EN 16931 invoice; totals from `@omnipdf/einvoice` — pair with `applyFacturX` for Factur-X. |
+| `invoiceDocument` | Branded EN 16931 invoice; totals from `@xpdf/einvoice` — pair with `applyFacturX` for Factur-X. |
 | `cvDocument` | Classic résumé; roles never strand at page bottoms. |
 | `reportDocument` | Title page, auto-numbered sections, lists/tables/quotes/images, footnotes, "Page X of Y". |
 | `letterDocument` | International business-letter block layout with signature gap. |
@@ -29,6 +29,6 @@ fx.doc.build();  // US Letter screenplay + embedded Fountain source
 
 ## Living payloads
 
-Every template embeds `document.json` (`/Source` relationship, PDF/A-3 safe). Restore with `extractAttachment` from `@omnipdf/core` — the file you sent is the file you edit.
+Every template embeds `document.json` (`/Source` relationship, PDF/A-3 safe). Restore with `extractAttachment` from `@xpdf/core` — the file you sent is the file you edit.
 
-All themes accept `accent`, custom fonts (base-14 or TTF), and `pdfa: '3B' | '3U'`. Part of [OmniPDF](https://github.com/OmniPDF/omnipdf). MIT © 2026 Yasirdora.
+All themes accept `accent`, custom fonts (base-14 or TTF), and `pdfa: '3B' | '3U'`. Part of [xpdf](https://github.com/Yasirdora/xpdf). MIT © 2026 Yasirdora.

@@ -4,7 +4,7 @@
  * Factur-X extension schema. After applyFacturX(), doc.build() produces a
  * Factur-X (EN 16931 profile) file.
  */
-import type { LayoutDocument } from '@omnipdf/document';
+import type { LayoutDocument } from '@xpdf/document';
 import { invoiceToCiiXml } from './cii.js';
 import { computeTotals, validateInvoice, type Invoice, type InvoiceTotals } from './model.js';
 

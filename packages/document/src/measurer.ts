@@ -3,16 +3,17 @@
  * engine uses. Font metrics shape dictates layout quality, so every width
  * and baseline in the engine flows through here (design doc §3).
  *
- * Base-14 fonts measure through Adobe AFM data (with kerning); embedded
- * TTFs measure through their real hmtx advances. Both expose 1000-em
- * ascent/descent for baseline alignment.
+ * Base-14 fonts measure through Adobe AFM data without kerning, because text
+ * is painted with Tj (no kerning). Embedded TTFs measure through their real
+ * hmtx advances. Both expose 1000-em ascent/descent for baseline alignment.
  */
 import {
   EmbeddedFont,
+  encodeWinAnsi,
   getFontMetrics,
   type FontMetrics,
   type StandardFontName,
-} from '@omnipdf/core';
+} from '@xpdf/core';
 
 export type FontSource = StandardFontName | Uint8Array | EmbeddedFont;
 
@@ -76,7 +77,19 @@ export class Measurer {
   width(fontName: string, text: string, size: number): number {
     const m = this.metrics(fontName);
     if (m instanceof EmbeddedFont) return m.widthAt(text, size);
-    return m.widthAt(text, size, { kern: true });
+    return m.widthAt(text, size, { kern: false });
+  }
+
+  /** Whether every character can be drawn in this font (not .notdef, not a WinAnsi miss). */
+  supports(fontName: string, text: string): boolean {
+    const m = this.metrics(fontName);
+    if (m instanceof EmbeddedFont) return m.supports(text);
+    try {
+      encodeWinAnsi(text);
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   /** Ascent above the baseline in pt at the given size. */

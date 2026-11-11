@@ -1,5 +1,5 @@
 /**
- * @omnipdf/core — zero-dependency, deterministic PDF writer.
+ * @xpdf/core — zero-dependency, deterministic PDF writer.
  *
  * Public API surface. Everything here runs identically in Node, browsers,
  * Deno, and Web Workers: no DOM, no platform APIs, just Uint8Array.

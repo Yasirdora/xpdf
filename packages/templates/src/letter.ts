@@ -5,7 +5,7 @@
  * fold marks): sender top-left, date right-aligned, recipient block, bold
  * subject line, justified body, closing with signature gap.
  */
-import { LayoutDocument } from '@omnipdf/document';
+import { LayoutDocument } from '@xpdf/document';
 import { attachPayload, type TemplateTheme } from './payload.js';
 
 export interface Letter {

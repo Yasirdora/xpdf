@@ -5,7 +5,7 @@
  * Footnotes ride on TextRun.note (fixpoint-resolved by the paginator);
  * page numbers come from a render-time furniture footer.
  */
-import { LayoutDocument, type TextRun, type TableDef } from '@omnipdf/document';
+import { LayoutDocument, type TextRun, type TableDef } from '@xpdf/document';
 import { attachPayload, type TemplateTheme } from './payload.js';
 
 export type ReportBlock =

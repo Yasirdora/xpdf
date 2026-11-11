@@ -1,13 +1,13 @@
-# @omnipdf/core
+# @xpdf/core
 
-Zero-dependency, byte-deterministic PDF writer — the foundation of the OmniPDF document engine.
+Zero-dependency, byte-deterministic PDF writer — the foundation of the xpdf document engine.
 
 ```bash
-npm install @omnipdf/core
+npm install @xpdf/core
 ```
 
 ```ts
-import { Document } from '@omnipdf/core';
+import { Document } from '@xpdf/core';
 
 const pdf = new Document({ title: 'Hello' });
 const page = pdf.addPage(595.28, 841.89); // A4
@@ -24,4 +24,4 @@ const bytes: Uint8Array = pdf.build(); // same input → same bytes, every time
 - **Reader**: `extractEmbeddedFiles` / `extractAttachment` for the living-payload round-trip.
 - **Zero dependencies**, ESM + CJS + types, Node 18+ and browsers.
 
-Part of [OmniPDF](https://github.com/OmniPDF/omnipdf). MIT © 2026 Yasirdora.
+Part of [xpdf](https://github.com/Yasirdora/xpdf). MIT © 2026 Yasirdora.

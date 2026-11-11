@@ -1,8 +1,8 @@
 {
-  "name": "omnipdf",
+  "name": "xpdf",
   "private": true,
   "version": "0.0.0",
-  "description": "OmniPDF monorepo — the universal structured-document PDF engine.",
+  "description": "xpdf monorepo — the universal structured-document PDF engine.",
   "type": "module",
   "workspaces": [
     "packages/*",

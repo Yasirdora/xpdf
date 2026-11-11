@@ -1,14 +1,14 @@
 /**
- * Shared living-payload helper: every OmniPDF template embeds its own source
+ * Shared living-payload helper: every xpdf template embeds its own source
  * data as document.json, so the produced PDF can be dragged back into any
- * OmniPDF tool and edited again. PDF/A-3 safe (AFRelationship 'Source').
+ * xpdf tool and edited again. PDF/A-3 safe (AFRelationship 'Source').
  */
-import type { LayoutDocument, FontSource } from '@omnipdf/document';
+import type { LayoutDocument, FontSource } from '@xpdf/document';
 
 export function attachPayload(doc: LayoutDocument, type: string, version: number, data: unknown): void {
   doc.attach('document.json', new TextEncoder().encode(JSON.stringify({ type, version, data }, null, 2)), {
     mime: 'application/json',
-    description: 'OmniPDF source document (round-trip payload)',
+    description: 'xpdf source document (round-trip payload)',
     afRelationship: 'Source',
   });
 }

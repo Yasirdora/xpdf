@@ -18,7 +18,7 @@
  *   text column 6.0" = 60 Courier characters; 54 lines per page
  *   character cue at 3.7", dialogue 2.5"–6.0" (35 chars), parenthetical 3.1"
  */
-import { LayoutDocument } from '@omnipdf/document';
+import { LayoutDocument } from '@xpdf/document';
 import { parseFountain, type FountainElement, type FountainScript } from './fountain.js';
 import { attachPayload, type TemplateTheme } from './payload.js';
 

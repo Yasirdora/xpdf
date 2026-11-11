@@ -1,5 +1,5 @@
 /**
- * Shared vocabulary for the OmniPDF layout engine: text runs, styles,
+ * Shared vocabulary for the xpdf layout engine: text runs, styles,
  * block properties, and the typed placement/slice model the paginator
  * produces and the renderer consumes.
  *
@@ -33,6 +33,11 @@ export interface TextRun {
    * the marker lands on (fixpoint-resolved by the paginator).
    */
   note?: string;
+  /**
+   * Make this run a link: every line fragment of the run gets a clickable
+   * /URI annotation over the words it covers.
+   */
+  href?: string;
 }
 
 export type Align = 'left' | 'right' | 'center' | 'justify';
@@ -91,6 +96,8 @@ export interface PositionedRun {
   width: number;
   /** Baseline shift (pt, positive = raised) for superscript note markers. */
   dy: number;
+  /** Link target; the renderer adds a /URI annotation over the run. */
+  href?: string;
 }
 
 export interface LayoutLine {
@@ -116,7 +123,14 @@ export interface CellLayout {
 
 /** Indivisible vertical unit produced by blocks and packed by the paginator. */
 export type Slice =
-  | { kind: 'text'; height: number; lines: LayoutLine[]; role: Role }
+  | {
+      kind: 'text';
+      height: number;
+      lines: LayoutLine[];
+      role: Role;
+      /** Set on a heading's first line: the renderer can build bookmarks from it. */
+      outline?: { title: string; level: number };
+    }
   | { kind: 'space'; height: number }
   | { kind: 'image'; height: number; width: number; dx: number; bytes: Uint8Array; role: Role }
   | {

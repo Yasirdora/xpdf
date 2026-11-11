@@ -1,6 +1,6 @@
 /**
  * EN 16931 semantic invoice model — the single source of truth for both the
- * human-readable PDF (via @omnipdf/templates) and the machine-readable
+ * human-readable PDF (via @xpdf/templates) and the machine-readable
  * Factur-X CII XML. Totals are computed once here so the two can never drift.
  */
 

@@ -3,7 +3,7 @@
  *
  * Base-14 fonts cover WinAnsi (Western Europe) only. For anything else —
  * Cyrillic, Greek, CJK, Vietnamese, emoji-less symbol sets — embed a TTF.
- * OmniPDF subsets it (only used glyphs ship), assigns Identity-H encoding,
+ * xpdf subsets it (only used glyphs ship), assigns Identity-H encoding,
  * and writes a ToUnicode CMap so the text stays copyable and searchable.
  *
  * Run: npx tsx examples/unicode.ts  →  writes examples/unicode.pdf
@@ -19,7 +19,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 // (OTF/CFF and TTC collections are rejected with clear errors — v1 is glyf-only.)
 const fontBytes = new Uint8Array(readFileSync(join(here, '../test/fixtures/Ubuntu-R.ttf')));
 
-const doc = new Document({ title: 'OmniPDF — Unicode showcase', author: 'omnipdf' });
+const doc = new Document({ title: 'xpdf — Unicode showcase', author: 'xpdf' });
 const ubuntu = doc.embedFont(fontBytes);
 
 const page = doc.addPage(); // A4
@@ -33,7 +33,7 @@ const lines: Array<[string, string]> = [
   ['Symbols', 'µ ≠ π · ∑ ± √∞ — em–dash… «quotes» € £ ¥'],
 ];
 
-page.text('OmniPDF — one embedded font, six scripts', 50, 50, { font: ubuntu, size: 20, color: '#1e40af' });
+page.text('xpdf — one embedded font, six scripts', 50, 50, { font: ubuntu, size: 20, color: '#1e40af' });
 page.line(50, 62, 545, 62, '#e5e7eb', 1);
 
 let y = 100;

@@ -17,7 +17,7 @@ jobs:
         with:
           node-version: '18.x'
           registry-url: 'https://npm.pkg.github.com/'
-          scope: '@omnipdf'
+          scope: '@xpdf'
       - name: Install dependencies
         run: npm ci
       - name: Build packages
