@@ -5,7 +5,7 @@
  * atomic units of pagination — the paginator never looks inside one, it only
  * decides whether a slice fits in the space the footnote fixpoint leaves.
  */
-import { parseJpegSize } from '@omnipdf/core';
+import { parseJpegSize } from '@xpdf/core';
 import { breakLines, tokenize, type StyledRun } from './line-break.js';
 import type { Measurer } from './measurer.js';
 import type {

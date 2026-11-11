@@ -1,7 +1,7 @@
 {
-  "name": "@omnipdf/document",
+  "name": "@xpdf/document",
   "version": "0.1.0",
-  "description": "Block model, measurer, and convergence paginator for OmniPDF \u2014 paragraphs, tables, footnotes, keep rules, page furniture, two-pass totals. Turns structured content into laid-out pages on @omnipdf/core.",
+  "description": "Block model, measurer, and convergence paginator for xpdf \u2014 paragraphs, tables, footnotes, keep rules, page furniture, two-pass totals. Turns structured content into laid-out pages on @xpdf/core.",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -37,7 +37,7 @@
   },
   "license": "MIT",
   "dependencies": {
-    "@omnipdf/core": "0.1.0"
+    "@xpdf/core": "0.1.0"
   },
   "devDependencies": {
     "@types/node": "^22.20.1",
@@ -51,11 +51,11 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/OmniPDF/omnipdf.git",
+    "url": "git+https://github.com/Yasirdora/xpdf.git",
     "directory": "packages/document"
   },
-  "homepage": "https://github.com/OmniPDF/omnipdf/tree/main/packages/document",
+  "homepage": "https://github.com/Yasirdora/xpdf/tree/main/packages/document",
   "bugs": {
-    "url": "https://github.com/OmniPDF/omnipdf/issues"
+    "url": "https://github.com/Yasirdora/xpdf/issues"
   }
 }

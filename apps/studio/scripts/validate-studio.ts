@@ -45,14 +45,14 @@ const foreign = buildTemplate('letter', SAMPLES.letter, null);
 const stripped = foreign.slice(0, foreign.length); // same bytes, but we test with a pdf lacking payload below
 try {
   // craft: any PDF without document.json — use core directly
-  const { Document } = await import('@omnipdf/core');
+  const { Document } = await import('@xpdf/core');
   const doc = new Document();
   const p = doc.addPage(595.28, 841.89);
   p.text('hello', 72, 72);
   restoreFromPdf(doc.build());
   throw new Error('foreign PDF should have thrown');
 } catch (e) {
-  if (!(e instanceof Error) || !/not made by OmniPDF/.test(e.message)) throw e;
+  if (!(e instanceof Error) || !/not made by xpdf/.test(e.message)) throw e;
   console.log('foreign PDF  OK  (clear error, no crash)');
 }
 void stripped;

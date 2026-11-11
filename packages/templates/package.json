@@ -1,7 +1,7 @@
 {
-  "name": "@omnipdf/templates",
+  "name": "@xpdf/templates",
   "version": "0.1.0",
-  "description": "Document templates for OmniPDF \u2014 invoice, and later CV, report, screenplay, paper. Templates map data to layout blocks: document types are data, not code.",
+  "description": "Document templates for xpdf \u2014 invoice, and later CV, report, screenplay, paper. Templates map data to layout blocks: document types are data, not code.",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -35,9 +35,9 @@
   },
   "license": "MIT",
   "dependencies": {
-    "@omnipdf/core": "0.1.0",
-    "@omnipdf/document": "0.1.0",
-    "@omnipdf/einvoice": "0.1.0"
+    "@xpdf/core": "0.1.0",
+    "@xpdf/document": "0.1.0",
+    "@xpdf/einvoice": "0.1.0"
   },
   "devDependencies": {
     "@types/node": "^22.20.1",
@@ -51,11 +51,11 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/OmniPDF/omnipdf.git",
+    "url": "git+https://github.com/Yasirdora/xpdf.git",
     "directory": "packages/templates"
   },
-  "homepage": "https://github.com/OmniPDF/omnipdf/tree/main/packages/templates",
+  "homepage": "https://github.com/Yasirdora/xpdf/tree/main/packages/templates",
   "bugs": {
-    "url": "https://github.com/OmniPDF/omnipdf/issues"
+    "url": "https://github.com/Yasirdora/xpdf/issues"
   }
 }

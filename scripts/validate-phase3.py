@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
-"""External validation of OmniPDF Phase 3 template examples (pypdf, independent
+"""External validation of xpdf Phase 3 template examples (pypdf, independent
 of the TS code). Checks text layer, page geometry, attachments, round-trip."""
 import json
+from pathlib import Path
+
 from pypdf import PdfReader
 
-BASE = "/Users/x/Documents/kimi/workspace/omnipdf/packages/templates/examples"
+BASE = Path(__file__).resolve().parent.parent / "packages" / "templates" / "examples"
 
 def load(name):
     r = PdfReader(f"{BASE}/{name}")

@@ -1,5 +1,5 @@
 /**
- * OmniPDF document API: pages, text, shapes, JPEG images, link annotations,
+ * xpdf document API: pages, text, shapes, JPEG images, link annotations,
  * outline bookmarks, file attachments, and metadata — assembled into a
  * deterministic, valid PDF 1.7 file.
  *
@@ -92,7 +92,7 @@ interface LinkAnnot {
   url: string;
 }
 
-const DEFAULT_PRODUCER = 'OmniPDF Core';
+const DEFAULT_PRODUCER = 'xpdf';
 
 export class Document {
   private pages: Page[] = [];

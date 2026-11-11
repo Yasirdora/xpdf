@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""External validation of the OmniPDF Factur-X end-to-end example.
+"""External validation of the xpdf Factur-X end-to-end example.
 
 Checks with pypdf + xml.dom (independent of our own TS code):
   1. PDF structure: page count, embedded files, AFRelationship, OutputIntent, XMP
@@ -10,9 +10,11 @@ Checks with pypdf + xml.dom (independent of our own TS code):
 import json
 import sys
 import xml.dom.minidom
+from pathlib import Path
+
 from pypdf import PdfReader
 
-PDF = "/Users/x/Documents/kimi/workspace/omnipdf/packages/templates/examples/facturx-invoice.pdf"
+PDF = Path(__file__).resolve().parent.parent / "packages" / "templates" / "examples" / "facturx-invoice.pdf"
 
 r = PdfReader(PDF)
 

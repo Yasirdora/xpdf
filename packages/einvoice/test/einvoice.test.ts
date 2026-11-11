@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { LayoutDocument } from '@omnipdf/document';
+import { LayoutDocument } from '@xpdf/document';
 import { computeTotals, round2, validateInvoice, type Invoice } from '../src/model.js';
 import { invoiceToCiiXml } from '../src/cii.js';
 import { applyFacturX, facturXXmpFragments } from '../src/facturx.js';

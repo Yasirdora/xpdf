@@ -11,7 +11,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { applyFacturX, type Invoice } from '@omnipdf/einvoice';
+import { applyFacturX, type Invoice } from '@xpdf/einvoice';
 import { invoiceDocument } from '../src/index.js';
 
 const here = dirname(fileURLToPath(import.meta.url));

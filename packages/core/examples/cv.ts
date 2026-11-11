@@ -1,5 +1,5 @@
 /**
- * Example: a professional one-page CV with @omnipdf/core.
+ * Example: a professional one-page CV with @xpdf/core.
  * Same writer, different document type — the pattern Phase 3 turns into templates.
  *
  * Run: npx tsx examples/cv.ts  →  writes examples/cv.pdf
@@ -54,7 +54,7 @@ const doc = new Document({
   title: `CV — ${cv.name}`,
   author: cv.name,
   subject: 'Curriculum Vitae',
-  keywords: ['cv', 'resume', 'omnipdf'],
+  keywords: ['cv', 'resume', 'xpdf'],
 });
 
 const page = doc.addPage();
@@ -139,8 +139,8 @@ doc.setOutlines([
 
 doc.attach(
   'document.json',
-  new TextEncoder().encode(JSON.stringify({ spec: 'omnipdf:1', type: 'cv', data: cv }, null, 2)),
-  { mime: 'application/json', description: 'OmniPDF source document' },
+  new TextEncoder().encode(JSON.stringify({ spec: 'xpdf:1', type: 'cv', data: cv }, null, 2)),
+  { mime: 'application/json', description: 'xpdf source document' },
 );
 
 const out = join(dirname(fileURLToPath(import.meta.url)), 'cv.pdf');

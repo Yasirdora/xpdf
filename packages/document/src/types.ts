@@ -1,5 +1,5 @@
 /**
- * Shared vocabulary for the OmniPDF layout engine: text runs, styles,
+ * Shared vocabulary for the xpdf layout engine: text runs, styles,
  * block properties, and the typed placement/slice model the paginator
  * produces and the renderer consumes.
  *

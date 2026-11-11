@@ -13,7 +13,7 @@ import {
   getFontMetrics,
   type FontMetrics,
   type StandardFontName,
-} from '@omnipdf/core';
+} from '@xpdf/core';
 
 export type FontSource = StandardFontName | Uint8Array | EmbeddedFont;
 

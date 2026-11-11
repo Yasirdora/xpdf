@@ -50,7 +50,7 @@ export function parseTtf(input: Uint8Array): TtfFont {
 
   const sfnt = r.u32(0);
   if (sfnt === 0x4f54544f /* 'OTTO' */ || sfnt === 0x43464620 /* 'CFF ' */) {
-    throw new Error('OTF/CFF fonts are not supported yet — OmniPDF v1 embeds TrueType (glyf) fonts only.');
+    throw new Error('OTF/CFF fonts are not supported yet — xpdf v1 embeds TrueType (glyf) fonts only.');
   }
   if (sfnt === 0x74746366 /* 'ttcf' */) {
     throw new Error('TTC collections: pass a single extracted .ttf (collection support is on the roadmap).');

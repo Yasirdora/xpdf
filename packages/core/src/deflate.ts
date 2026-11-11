@@ -3,7 +3,7 @@
  *
  * Why our own? Platform zlib implementations (Chromium, Node, Deno) produce
  * different — equally valid — byte streams for identical input, which breaks
- * OmniPDF's byte-identity guarantee. This encoder is a greedy LZ77 with fixed
+ * xpdf's byte-identity guarantee. This encoder is a greedy LZ77 with fixed
  * Huffman coding: fully specified, so it emits identical bytes on every
  * runtime, forever. Compression ratio is slightly below `zlib -6`; for
  * document streams that trade is worth determinism.

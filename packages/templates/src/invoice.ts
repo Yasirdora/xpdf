@@ -6,10 +6,10 @@
  * so the visual document and the CII XML can never disagree.
  *
  * Every invoice carries a document.json payload attachment — the living
- * PDF: drag the file back into any OmniPDF tool and it is editable again.
+ * PDF: drag the file back into any xpdf tool and it is editable again.
  */
-import { LayoutDocument, type FontSource } from '@omnipdf/document';
-import { computeTotals, validateInvoice, type Invoice, type InvoiceTotals } from '@omnipdf/einvoice';
+import { LayoutDocument, type FontSource } from '@xpdf/document';
+import { computeTotals, validateInvoice, type Invoice, type InvoiceTotals } from '@xpdf/einvoice';
 
 export interface InvoiceTheme {  /** Brand accent for the title, rules, and table header fill. */
   accent?: string;
@@ -172,7 +172,7 @@ export function invoiceDocument(inv: Invoice, theme: InvoiceTheme = {}): Invoice
   // --- living payload: the document is its own editable source ---
   doc.attach('document.json', new TextEncoder().encode(JSON.stringify({ type: 'invoice', version: 1, data: inv }, null, 2)), {
     mime: 'application/json',
-    description: 'OmniPDF source document (round-trip payload)',
+    description: 'xpdf source document (round-trip payload)',
     afRelationship: 'Source',
   });
 

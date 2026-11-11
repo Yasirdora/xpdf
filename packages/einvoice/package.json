@@ -1,7 +1,7 @@
 {
-  "name": "@omnipdf/einvoice",
+  "name": "@xpdf/einvoice",
   "version": "0.1.0",
-  "description": "Electronic invoicing for OmniPDF: EN 16931 semantic model, Factur-X 1.0 / ZUGFeRD 2.x CrossIndustryInvoice XML, and PDF/A-3 assembly glue.",
+  "description": "Electronic invoicing for xpdf: EN 16931 semantic model, Factur-X 1.0 / ZUGFeRD 2.x CrossIndustryInvoice XML, and PDF/A-3 assembly glue.",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -37,8 +37,8 @@
   },
   "license": "MIT",
   "dependencies": {
-    "@omnipdf/core": "0.1.0",
-    "@omnipdf/document": "0.1.0"
+    "@xpdf/core": "0.1.0",
+    "@xpdf/document": "0.1.0"
   },
   "devDependencies": {
     "@types/node": "^22.20.1",
@@ -52,11 +52,11 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/OmniPDF/omnipdf.git",
+    "url": "git+https://github.com/Yasirdora/xpdf.git",
     "directory": "packages/einvoice"
   },
-  "homepage": "https://github.com/OmniPDF/omnipdf/tree/main/packages/einvoice",
+  "homepage": "https://github.com/Yasirdora/xpdf/tree/main/packages/einvoice",
   "bugs": {
-    "url": "https://github.com/OmniPDF/omnipdf/issues"
+    "url": "https://github.com/Yasirdora/xpdf/issues"
   }
 }

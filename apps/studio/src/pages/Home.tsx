@@ -113,13 +113,13 @@ export default function Home() {
           <div className="flex items-center gap-3">
             <FileText className="h-6 w-6 text-blue-700" />
             <div>
-              <h1 className="text-lg font-semibold tracking-tight">OmniPDF Studio</h1>
+              <h1 className="text-lg font-semibold tracking-tight">xpdf Studio</h1>
               <p className="text-xs text-neutral-500">the living-PDF playground — zero dependencies, byte-deterministic</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Badge variant="secondary">@omnipdf/core</Badge>
-            <Badge variant="secondary">@omnipdf/templates</Badge>
+            <Badge variant="secondary">@xpdf/core</Badge>
+            <Badge variant="secondary">@xpdf/templates</Badge>
             <Badge variant="outline">running in your browser</Badge>
           </div>
         </div>
@@ -219,7 +219,7 @@ export default function Home() {
         <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center bg-blue-700/10 backdrop-blur-[1px]">
           <div className="rounded-xl border-2 border-dashed border-blue-600 bg-white/90 px-10 py-8 text-center shadow-lg">
             <FileUp className="mx-auto mb-2 h-8 w-8 text-blue-700" />
-            <p className="font-medium text-blue-900">Drop an OmniPDF file</p>
+            <p className="font-medium text-blue-900">Drop an xpdf file</p>
             <p className="text-sm text-blue-700">its editable source will be restored</p>
           </div>
         </div>

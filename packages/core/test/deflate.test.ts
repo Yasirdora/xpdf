@@ -13,7 +13,7 @@ const text = (s: string) => new TextEncoder().encode(s);
 describe('deflate', () => {
   it('roundtrips empty input', () => roundtrip(new Uint8Array(0)));
   it('roundtrips a single byte', () => roundtrip(new Uint8Array([42])));
-  it('roundtrips plain text', () => roundtrip(text('Hello, OmniPDF!')));
+  it('roundtrips plain text', () => roundtrip(text('Hello, xpdf!')));
 
   it('roundtrips highly repetitive data', () => {
     roundtrip(text('invoice '.repeat(5000)));

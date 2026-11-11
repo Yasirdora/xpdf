@@ -17,12 +17,12 @@ const ubuntu = new Uint8Array(readFileSync(join(here, '../../core/test/fixtures/
 const doc = new LayoutDocument({
   pageSize: 'A4',
   margins: { top: 64, bottom: 72, left: 64, right: 64 },
-  title: 'OmniPDF engine report',
-  author: 'omnipdf',
+  title: 'xpdf engine report',
+  author: 'xpdf',
   defaultStyle: { font: 'body', size: 10.5, lineHeight: 1.35 },
   footer: (page, ctx) => {
     page.line(64, 812, 531, 812, '#e5e7eb', 0.5);
-    page.text('OmniPDF — engine report', 64, 822, { size: 8.5, color: '#9ca3af' });
+    page.text('xpdf — engine report', 64, 822, { size: 8.5, color: '#9ca3af' });
     page.text(`Page ${ctx.page} of ${ctx.pages}`, 64, 822, {
       size: 8.5, color: '#9ca3af', align: 'right', width: 467,
     });
@@ -34,7 +34,7 @@ doc.font('body-bold', 'Helvetica-Bold');
 
 doc.heading('Deterministic Document Layout at Zero Dependencies', 1);
 doc.paragraph([
-  { text: 'An evaluation of the OmniPDF convergence paginator', font: 'body-bold' },
+  { text: 'An evaluation of the xpdf convergence paginator', font: 'body-bold' },
   { text: ' — measuring how far a strict block model, real font metrics, and a fixpoint footnote algorithm take a dependency-free engine.' },
 ], { color: '#4b5563', spaceAfter: 14 });
 

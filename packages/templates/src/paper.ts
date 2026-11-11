@@ -6,7 +6,7 @@
  * Footnotes via TextRun.note, citations as plain markers ([1]); references
  * use a hanging indent. PDF/A mode recommended for archival (arXiv-style).
  */
-import { LayoutDocument, type TextRun } from '@omnipdf/document';
+import { LayoutDocument, type TextRun } from '@xpdf/document';
 import { attachPayload, type TemplateTheme } from './payload.js';
 
 export interface PaperSection {

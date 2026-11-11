@@ -1,5 +1,5 @@
 /**
- * Round-trip reader: extract embedded files from an OmniPDF-produced PDF.
+ * Round-trip reader: extract embedded files from an xpdf-produced PDF.
  *
  * Scope, stated plainly: this scans for the deterministic structures our own
  * writer emits (Filespec dicts and EmbeddedFile streams, in matching order).

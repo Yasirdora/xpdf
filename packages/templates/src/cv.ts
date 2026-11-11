@@ -5,7 +5,7 @@
  * a later core feature, tracked in the design doc). Entries use keepWithNext
  * chains so a role heading never strands at a page bottom.
  */
-import { LayoutDocument } from '@omnipdf/document';
+import { LayoutDocument } from '@xpdf/document';
 import { attachPayload, type TemplateTheme } from './payload.js';
 
 export interface CvExperience {

@@ -84,19 +84,19 @@ export function buildSrgbIccProfile(): Uint8Array {
   const out = new Bin();
   // --- 128-byte header (size patched at the end) ---
   out.u32(0); // profile size placeholder
-  out.str('OPDF'); // CMM: OmniPDF
+  out.str('XPDF'); // CMM: xpdf
   out.u32(0x02100000); // version 2.1.0
   out.str('mntr').str('RGB ').str('XYZ ');
   out.u16(2024).u16(1).u16(1).u16(0).u16(0).u16(0); // fixed creation date (determinism)
   out.str('acsp');
   out.zeros(4); // platform: none
   out.zeros(4); // flags
-  out.str('OPDF'); // manufacturer
+  out.str('XPDF'); // manufacturer
   out.zeros(4); // model
   out.zeros(8); // attributes
   out.u32(0); // rendering intent: perceptual
   for (const v of D50) out.i32(s15Fixed16(v)); // illuminant
-  out.str('OPDF'); // creator
+  out.str('XPDF'); // creator
   out.zeros(44); // profile ID + reserved
 
   // --- tag table ---

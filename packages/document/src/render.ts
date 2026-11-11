@@ -1,5 +1,5 @@
 /**
- * Renderer: placements → @omnipdf/core drawing calls.
+ * Renderer: placements → @xpdf/core drawing calls.
  *
  * Pure function of the paginator's output — the same PageLayout[] always
  * produces the same bytes (core build is deterministic: own deflate, no
@@ -11,7 +11,7 @@ import {
   type DocumentOptions,
   type FontRef,
   type OutlineItem,
-} from '@omnipdf/core';
+} from '@xpdf/core';
 import type { FontRegistry } from './measurer.js';
 import type { PageGeometry } from './paginator.js';
 import type { LayoutLine, PageLayout, Placement, Slice } from './types.js';

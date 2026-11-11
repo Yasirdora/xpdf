@@ -1,5 +1,5 @@
 /**
- * LayoutDocument: the public face of @omnipdf/document.
+ * LayoutDocument: the public face of @xpdf/document.
  *
  * Structured content in (paragraphs, tables, images, footnotes), paginated
  * PDF bytes out. Templates (CV, invoice, report, screenplay, paper) compile

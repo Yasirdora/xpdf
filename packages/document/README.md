@@ -1,13 +1,13 @@
-# @omnipdf/document
+# @xpdf/document
 
-Layout engine for OmniPDF: styled text, tables, images and footnotes, paginated by convergence.
+Layout engine for xpdf: styled text, tables, images and footnotes, paginated by convergence.
 
 ```bash
-npm install @omnipdf/document
+npm install @xpdf/document
 ```
 
 ```ts
-import { LayoutDocument } from '@omnipdf/document';
+import { LayoutDocument } from '@xpdf/document';
 
 const doc = new LayoutDocument({
   pageSize: 'A4',
@@ -34,6 +34,6 @@ const bytes = doc.build();
 - Footnotes typeset at the bottom of the page the marker lands on — resolved by a pagination fixpoint.
 - keepTogether / keepWithNext / orphans / widows.
 - Header/footer furniture with resolved fonts and total page count.
-- Embedded TTF fonts via `@omnipdf/core`; PDF/A-3 passthrough.
+- Embedded TTF fonts via `@xpdf/core`; PDF/A-3 passthrough.
 
-Part of [OmniPDF](https://github.com/OmniPDF/omnipdf). MIT © 2026 Yasirdora.
+Part of [xpdf](https://github.com/Yasirdora/xpdf). MIT © 2026 Yasirdora.

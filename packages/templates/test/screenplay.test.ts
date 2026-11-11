@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { inflateZlib, extractAttachment } from '@omnipdf/core';
+import { inflateZlib, extractAttachment } from '@xpdf/core';
 import { parseFountain } from '../src/fountain.js';
 import { screenplayDocument, wrapMono, SP } from '../src/screenplay.js';
 

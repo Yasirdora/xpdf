@@ -1,17 +1,17 @@
 /**
- * OmniPDF engine bridge for the browser playground.
+ * xpdf engine bridge for the browser playground.
  *
  * The same packages that run in Node run unchanged in the browser — the
  * engine has zero runtime dependencies. This module turns editor text into
  * PDF bytes per template, and restores editor text back from a dropped PDF
  * via the living document.json payload.
  */
-import { extractAttachment } from '@omnipdf/core';
-import { applyFacturX, type Invoice } from '@omnipdf/einvoice';
+import { extractAttachment } from '@xpdf/core';
+import { applyFacturX, type Invoice } from '@xpdf/einvoice';
 import {
   invoiceDocument, cvDocument, reportDocument, letterDocument, paperDocument,
   screenplayDocument,
-} from '@omnipdf/templates';
+} from '@xpdf/templates';
 
 export type TemplateId = 'invoice' | 'cv' | 'report' | 'letter' | 'paper' | 'screenplay';
 
@@ -74,7 +74,7 @@ export interface RestoredDocument {
 export function restoreFromPdf(bytes: Uint8Array): RestoredDocument {
   const payloadBytes = extractAttachment(bytes, 'document.json');
   if (!payloadBytes) {
-    throw new Error('No document.json payload found — this PDF was not made by OmniPDF.');
+    throw new Error('No document.json payload found — this PDF was not made by xpdf.');
   }
   const payload = JSON.parse(new TextDecoder().decode(payloadBytes)) as {
     type: string;
@@ -94,6 +94,6 @@ export function restoreFromPdf(bytes: Uint8Array): RestoredDocument {
       return { type: 'screenplay', editorText: fountain };
     }
     default:
-      throw new Error(`Unknown OmniPDF payload type: ${payload.type}`);
+      throw new Error(`Unknown xpdf payload type: ${payload.type}`);
   }
 }
